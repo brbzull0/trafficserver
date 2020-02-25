@@ -54,7 +54,7 @@ readIntoBuffer(const char *file_path, const char *module_name, int *read_size_pt
   char *file_buf, *buf;
   int read_size = 0;
   int file_size;
-
+  bool check_stat { true };
   if (read_size_ptr != nullptr) {
     *read_size_ptr = 0;
   }
@@ -62,16 +62,25 @@ readIntoBuffer(const char *file_path, const char *module_name, int *read_size_pt
   //   at start up and infrequently afterward
   if ((fd = open(file_path, O_RDONLY)) < 0) {
     Error("%s Can not open %s file : %s", module_name, file_path, strerror(errno));
-    return nullptr;
+    switch (errno) {
+    case ENOENT:
+      check_stat = false;
+      file_size = 0;
+      break;
+    default:
+      return nullptr;
+    }
   }
 
-  if (fstat(fd, &file_info) < 0) {
-    Error("%s Can not stat %s file : %s", module_name, file_path, strerror(errno));
-    close(fd);
-    return nullptr;
-  }
+  if (check_stat) {
+    if (fstat(fd, &file_info) < 0) {
+      Error("%s Can not stat %s file : %s", module_name, file_path, strerror(errno));
+      close(fd);
+      return nullptr;
+    }
 
-  file_size = file_info.st_size; // number of bytes in file
+    file_size = file_info.st_size; // number of bytes in file
+  }
 
   if (file_size < 0) {
     Error("%s Can not get correct file size for %s file : %" PRId64 "", module_name, file_path, (int64_t)file_info.st_size);
@@ -123,7 +132,6 @@ readIntoBuffer(const char *file_path, const char *module_name, int *read_size_pt
   }
 
   close(fd);
-
   return file_buf;
 }
 
