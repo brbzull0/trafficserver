@@ -80,7 +80,8 @@ class FileManager
 public:
   FileManager();
   ~FileManager();
-  void addFile(const char *fileName, const char *configName, bool root_access_needed, ConfigManager *parentConfig = nullptr);
+  void addFile(const char *fileName, const char *configName, bool root_access_needed, bool shouldExist,
+               ConfigManager *parentConfig = nullptr);
   bool getConfigObj(const char *fileName, ConfigManager **rbPtr);
   void registerCallback(FileCallbackFunc func);
   void fileChanged(const char *fileName, const char *configName);
@@ -93,7 +94,7 @@ private:
   ink_mutex cbListLock; // Protects the CallBack List
   DLL<callbackListable> cblist;
   std::unordered_map<std::string_view, ConfigManager *> bindings;
-  void addFileHelper(const char *fileName, const char *configName, bool root_access_needed, ConfigManager *parentConfig);
+  void addFileHelper(const char *fileName, const char *configName, bool root_access_needed, bool shouldExist, ConfigManager *parentConfig);
 };
 
 void initializeRegistry(); // implemented in AddConfigFilesHere.cc
