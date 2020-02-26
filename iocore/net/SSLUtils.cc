@@ -29,6 +29,8 @@
 #include "tscore/ink_mutex.h"
 #include "tscore/Filenames.h"
 #include "records/I_RecHttp.h"
+#include "tscore/ts_file.h"
+
 
 #include "P_Net.h"
 #include "InkAPIInternal.h"
@@ -46,6 +48,7 @@
 #include <unistd.h>
 #include <termios.h>
 #include <vector>
+#include <string_view>
 
 #include <openssl/asn1.h>
 #include <openssl/bio.h>
@@ -1593,7 +1596,6 @@ SSLMultiCertConfigLoader::load(SSLCertLookup *lookup)
 
   char *tok_state = nullptr;
   char *line      = nullptr;
-  ats_scoped_str file_buf;
   unsigned line_num = 0;
   matcher_line line_info;
 
@@ -1601,13 +1603,17 @@ SSLMultiCertConfigLoader::load(SSLCertLookup *lookup)
 
   Note("%s loading ...", ts::filename::SSL_MULTICERT);
 
-  if (params->configFilePath) {
-    file_buf = readIntoBuffer(params->configFilePath, __func__, nullptr);
-  }
-
-  if (!file_buf) {
-    Error("failed to read SSL certificate configuration from %s", params->configFilePath);
-    return false;
+  std::error_code ec;
+  std::string content{ts::file::load(std::string_view{params->configFilePath}, ec)};
+  // should we check for params->configFilePath?
+  if (ec.value() != 0) {
+    switch (ec.value()) {
+    case EACCES:
+      Error("Failed to read SSL certificate configuration from %s - %s", params->configFilePath, strerror(ec.value()));
+      return false;
+    default:
+      Warning("Cannot read SSL certificate configuration from %s - %s", params->configFilePath, strerror(ec.value()));
+    }
   }
 
   // Optionally elevate/allow file access to read root-only
@@ -1616,7 +1622,7 @@ SSLMultiCertConfigLoader::load(SSLCertLookup *lookup)
   REC_ReadConfigInteger(elevate_setting, "proxy.config.ssl.cert.load_elevated");
   ElevateAccess elevate_access(elevate_setting ? ElevateAccess::FILE_PRIVILEGE : 0);
 
-  line = tokLine(file_buf, &tok_state);
+  line = tokLine(content.data(), &tok_state);
   while (line != nullptr) {
     line_num++;
 

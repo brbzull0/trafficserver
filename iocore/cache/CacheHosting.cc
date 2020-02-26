@@ -27,6 +27,9 @@
 #include "tscore/Tokenizer.h"
 #include "tscore/Regression.h"
 #include "tscore/Filenames.h"
+#include "tscore/ts_file.h"
+
+#include <string_view>
 
 extern int gndisks;
 
@@ -396,20 +399,21 @@ CacheHostTable::BuildTableFromString(const char *config_file_path, char *file_bu
 int
 CacheHostTable::BuildTable(const char *config_file_path)
 {
-  char *file_buf;
-  int ret;
+  std::error_code ec;
+  std::string content{ts::file::load(std::string_view{config_file_path}, ec)};
 
-  file_buf = readIntoBuffer(config_file_path, matcher_name, nullptr);
-
-  if (file_buf == nullptr) {
-    Warning("Cannot read the config file: %s", config_file_path);
+  if (ec.value() != 0) {
     gen_host_rec.Init(type);
-    return 0;
+    switch (ec.value()) {
+    case EACCES:
+      Error("%s failed to load: %s", ts::filename::VOLUME, strerror(ec.value()));
+      return 0;
+    default:
+      Warning("Cannot read the config file: %s - %s", config_file_path, strerror(ec.value()));
+    }
   }
 
-  ret = BuildTableFromString(config_file_path, file_buf);
-  ats_free(file_buf);
-  return ret;
+  return BuildTableFromString(config_file_path, content.data());
 }
 
 int
@@ -592,23 +596,26 @@ void
 ConfigVolumes::read_config_file()
 {
   ats_scoped_str config_path;
-  char *file_buf;
 
   config_path = RecConfigReadConfigPath("proxy.config.cache.volume_filename");
   ink_release_assert(config_path);
 
   Note("%s loading ...", ts::filename::VOLUME);
 
-  file_buf = readIntoBuffer(config_path, "[CacheVolition]", nullptr);
-  if (file_buf == nullptr) {
-    Error("%s failed to load", ts::filename::VOLUME);
-    Warning("Cannot read the config file: %s", (const char *)config_path);
-    return;
+  std::error_code ec;
+  std::string content{ts::file::load(std::string_view{config_path}, ec)};
+
+  if (ec.value() != 0) {
+    switch (ec.value()) {
+    case EACCES:
+      Error("%s failed to load: %s", ts::filename::VOLUME, strerror(ec.value()));
+      return;
+    default:
+      Warning("Cannot read the config file: %s - %s", (const char *)config_path, strerror(ec.value()));
+    }
   }
 
-  BuildListFromString(config_path, file_buf);
-  ats_free(file_buf);
-
+  BuildListFromString(config_path, content.data());
   Note("volume.config finished loading");
 
   return;

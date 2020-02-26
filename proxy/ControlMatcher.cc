@@ -33,6 +33,7 @@
 #include "tscore/ink_config.h"
 #include "tscore/MatcherUtils.h"
 #include "tscore/Tokenizer.h"
+#include "tscore/ts_file.h"
 #include "ProxyConfig.h"
 #include "ControlMatcher.h"
 #include "CacheControl.h"
@@ -935,19 +936,20 @@ template <class Data, class MatchResult>
 int
 ControlMatcher<Data, MatchResult>::BuildTable()
 {
-  // File I/O Locals
-  char *file_buf;
-  int ret;
+  std::error_code ec;
+  std::string content{ts::file::load(std::string_view{config_file_path}, ec)};
 
-  file_buf = readIntoBuffer(config_file_path, matcher_name, nullptr);
-
-  if (file_buf == nullptr) {
-    return 1;
+  if (ec.value() != 0) {
+    switch (ec.value()) {
+    case EACCES:
+      Error("%s failed to load: %s", config_file_path, strerror(ec.value()));
+      return -1;
+    default:
+      Warning("Cannot read the config file: %s - %s", config_file_path, strerror(ec.value()));
+    }
   }
 
-  ret = BuildTableFromString(file_buf);
-  ats_free(file_buf);
-  return ret;
+  return  BuildTableFromString(content.data());
 }
 
 /****************************************************************
