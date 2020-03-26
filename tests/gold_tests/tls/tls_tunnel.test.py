@@ -71,8 +71,10 @@ ts.Disk.sni_yaml.AddLines([
   'sni:',
   '- fqdn: foo.com',
   "  tunnel_route: localhost:{0}".format(server_foo.Variables.SSL_Port),
-  "- fqdn: bob.*.com",
-  "  tunnel_route: localhost:{0}".format(server_foo.Variables.SSL_Port),
+  "- fqdn: 'bob.*.com'",
+  # "  tunnel_route: localhost:{0}".format(server_foo.Variables.SSL_Port),
+  # "- fqdn: '*.bar.com'",
+  "  tunnel_route: $1.localhost:{0}".format(server_foo.Variables.SSL_Port),
   "- fqdn: ''", # No SNI sent
   "  tunnel_route: localhost:{0}".format(server_bar.Variables.SSL_Port)
 ])
