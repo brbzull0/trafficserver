@@ -44,6 +44,7 @@
 
 #include "tscore/ink_platform.h"
 #include "tscore/ink_inet.h"
+#include "tscore/ink_resolver.h"
 #include "tscore/IpMap.h"
 #include "tscore/Regex.h"
 #include "string_view"
@@ -681,6 +682,8 @@ struct OverridableHttpConfigParams {
   char *ssl_client_cert_filename        = nullptr;
   char *ssl_client_private_key_filename = nullptr;
   char *ssl_client_ca_cert_filename     = nullptr;
+
+  HostResData host_res_data;
 };
 
 /////////////////////////////////////////////////////////////

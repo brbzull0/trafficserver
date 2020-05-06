@@ -1583,6 +1583,8 @@ HttpConfig::reconfigure()
 
   params->negative_caching_list = m_master.negative_caching_list;
 
+  params->oride.host_res_data = m_master.oride.host_res_data;
+
   m_id = configProcessor.set(m_id, params);
 }
 

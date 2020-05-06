@@ -194,6 +194,13 @@ extern void parse_host_res_preference(const char *value,           ///< [in] Con
                                       HostResPreferenceOrder order /// [out] Order to update.
 );
 
+// domain resolution priority for origin.
+struct HostResData {
+  HostResStyle style = HostResStyle::HOST_RES_IPV4;
+  // keep the original configuration to satisfy the API(TSHttpTxnConfigStringSet)
+  std::string_view original_str;
+};
+
 #ifndef NS_GET16
 #define NS_GET16(s, cp)                                                  \
   do {                                                                   \

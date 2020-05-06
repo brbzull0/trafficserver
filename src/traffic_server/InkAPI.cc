@@ -8613,6 +8613,10 @@ _conf_to_memberp(TSOverridableConfigKey conf, OverridableHttpConfigParams *overr
     ret  = &overridableHttpConfig->outbound_conntrack.match;
     conv = &OutboundConnTrack::MATCH_CONV;
     break;
+  case TS_CONFIG_HTTP_HOST_RESOLUTION_STYLE:
+    ret  = &overridableHttpConfig->host_res_data;
+    conv = &HttpTransact::HOST_RES_CONV;
+    break;
   // This helps avoiding compiler warnings, yet detect unhandled enum members.
   case TS_CONFIG_NULL:
   case TS_CONFIG_LAST_ENTRY:
@@ -8800,6 +8804,11 @@ TSHttpTxnConfigStringSet(TSHttpTxn txnp, TSOverridableConfigKey conf, const char
   case TS_CONFIG_SSL_CERT_FILEPATH:
     /* noop */
     break;
+  case TS_CONFIG_HTTP_HOST_RESOLUTION_STYLE:
+    // In order to be complaian with the TSHttpTxnConfigStringGet the original value needs to be stored
+    // so it can be retrieved later on by the API call.
+    s->t_state.my_txn_conf().host_res_data.original_str = s->t_state.arena.str_store(value, length);
+    [[fallthrough]];
   default: {
     MgmtConverter const *conv;
     void *dest = _conf_to_memberp(conf, &(s->t_state.my_txn_conf()), conv);

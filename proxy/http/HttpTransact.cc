@@ -46,6 +46,22 @@
 #include "../IPAllow.h"
 #include "I_Machine.h"
 
+// Support ip_resolve convertion from ip_resolve to host resolution style used in a DNS
+// query for a host address used during DNS query operations.
+const MgmtConverter HttpTransact::HOST_RES_CONV{[](const HttpSM *, const void *data) -> std::string_view {
+                                                  const HostResData *host_res_data = static_cast<const HostResData *>(data);
+                                                  return host_res_data->original_str;
+                                                },
+                                                [](const HttpSM *sm, void *data, std::string_view src) -> void {
+                                                  HostResData *host_res_data = static_cast<HostResData *>(data);
+
+                                                  NetVConnection *netvc = sm->ua_txn->get_netvc();
+                                                  HostResPreferenceOrder order_out;
+                                                  parse_host_res_preference(src.data(), order_out);
+                                                  host_res_data->style =
+                                                    ats_host_res_from(netvc->get_local_addr()->sa_family, order_out);
+                                                }};
+
 static char range_type[] = "multipart/byteranges; boundary=RANGE_SEPARATOR";
 #define RANGE_NUMBERS_LENGTH 60
 
@@ -3749,7 +3765,7 @@ HttpTransact::handle_response_from_server(State *s)
         // Force host resolution to have the same family as the client.
         // Because this is a transparent connection, we can't switch address
         // families - that is locked in by the client source address.
-        s->dns_info.host_res_style = ats_host_res_match(&s->current.server->dst_addr.sa);
+        s->my_txn_conf().host_res_data.style = ats_host_res_match(&s->current.server->dst_addr.sa);
         return CallOSDNSLookup(s);
       } else if ((s->dns_info.srv_lookup_success || s->host_db_info.is_rr_elt()) &&
                  (s->txn_conf->connect_attempts_rr_retries > 0) &&
