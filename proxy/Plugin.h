@@ -25,6 +25,7 @@
 
 #include <string>
 #include "tscore/List.h"
+#include "tscore/ts_file.h"
 
 typedef enum { RELOAD_OFF, RELOAD_ON, RELOAD_COUNT } PluginDynamicReloadMode;
 
@@ -32,6 +33,7 @@ typedef enum { RELOAD_OFF, RELOAD_ON, RELOAD_COUNT } PluginDynamicReloadMode;
 void parsePluginConfig();
 
 bool isPluginDynamicReloadEnabled();
+bool is_plugin_dso_enabled_as_global(const ts::file::path &plugin_path);
 
 struct PluginRegInfo {
   PluginRegInfo();
@@ -40,9 +42,10 @@ struct PluginRegInfo {
   bool plugin_registered = false;
   char *plugin_path      = nullptr;
 
-  char *plugin_name   = nullptr;
-  char *vendor_name   = nullptr;
-  char *support_email = nullptr;
+  char *plugin_name          = nullptr;
+  char *vendor_name          = nullptr;
+  char *support_email        = nullptr;
+  bool dso_reloading_enabled = true;
 
   void *dlh = nullptr;
 
@@ -56,6 +59,8 @@ extern PluginRegInfo *plugin_reg_current;
 bool plugin_init(bool validateOnly = false);
 bool plugin_dso_load(const char *path, void *&handle, void *&init, std::string &error);
 
+PluginRegInfo *find_first_by_path(const ts::file::path &plugin_path);
+bool is_plugin_dso_enabled(const ts::file::path &effective_path);
 /** Abstract interface class for plugin based continuations.
 
     The primary intended use of this is for logging so that continuations

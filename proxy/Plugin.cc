@@ -54,7 +54,7 @@ parsePluginDynamicReloadConfig()
     Warning("proxy.config.plugin.dynamic_reload_mode out of range. using default value.");
     plugin_dynamic_reload_mode = PluginDynamicReloadMode::RELOAD_ON;
   }
-  Note("Initialized plugin_dynamic_reload_mode: %d", plugin_dynamic_reload_mode);
+  Debug("plugin", "Initialized plugin_dynamic_reload_mode: %d", plugin_dynamic_reload_mode);
 }
 
 void
@@ -164,9 +164,10 @@ single_plugin_init(int argc, char *argv[], bool validateOnly)
     // Allocate a new registration structure for the
     //    plugin we're starting up
     ink_assert(plugin_reg_current == nullptr);
-    plugin_reg_current              = new PluginRegInfo;
-    plugin_reg_current->plugin_path = ats_strdup(path);
-    plugin_reg_current->dlh         = handle;
+    plugin_reg_current                        = new PluginRegInfo;
+    plugin_reg_current->plugin_path           = ats_strdup(path);
+    plugin_reg_current->dlh                   = handle;
+    plugin_reg_current->dso_reloading_enabled = isPluginDynamicReloadEnabled();
 
 #if (!defined(kfreebsd) && defined(freebsd)) || defined(darwin)
     optreset = 1;
@@ -362,4 +363,25 @@ plugin_init(bool validateOnly)
     Error("%s failed to load", ts::filename::PLUGIN);
   }
   return retVal;
+}
+
+PluginRegInfo *
+find_first_by_path(const ts::file::path &plugin_path)
+{
+  PluginRegInfo *found = plugin_reg_list.head;
+  for (; found != nullptr; found = (found->link).next) {
+    if (strcmp(found->plugin_path, plugin_path.string().c_str()) == 0) {
+      break;
+    }
+  }
+  return found;
+}
+
+bool
+is_plugin_dso_enabled(const ts::file::path &effective_path)
+{
+  // First check if this is a global plugin also.
+  auto *found_plugin = find_first_by_path(effective_path);
+  // TODO: do we want to check by time as well? TBD. We do not have stored the global plugin timestamp, check.
+  return found_plugin ? found_plugin->dso_reloading_enabled : isPluginDynamicReloadEnabled();
 }

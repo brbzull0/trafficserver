@@ -71,3 +71,9 @@ disablePluginDynamicReload()
 {
   plugin_dynamic_reload_mode = PluginDynamicReloadMode::RELOAD_OFF;
 }
+
+bool
+is_plugin_dso_enabled(const ts::file::path &effectivePath)
+{
+  return isPluginDynamicReloadEnabled();
+}

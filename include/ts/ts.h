@@ -162,6 +162,15 @@ int TSTrafficServerVersionGetPatch(void);
  */
 tsapi TSReturnCode TSPluginRegister(const TSPluginRegistrationInfo *plugin_info);
 
+/**
+   TBC
+
+   @param enable_dso_reloading_flag boolean flag.
+   @return TS_ERROR if failed.
+
+ */
+tsapi TSReturnCode TSPluginDSOReloadEnable(int enable_dso_reloading_flag);
+
 /* --------------------------------------------------------------------------
    Files */
 /**

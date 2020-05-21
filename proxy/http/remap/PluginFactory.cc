@@ -141,7 +141,7 @@ PluginFactory::getUuid()
  * @return pointer to a plugin instance, nullptr if failure
  */
 RemapPluginInst *
-PluginFactory::getRemapPlugin(const fs::path &configPath, int argc, char **argv, std::string &error, bool dynamicReloadEnabled)
+PluginFactory::getRemapPlugin(const fs::path &configPath, int argc, char **argv, std::string &error)
 {
   /* Discover the effective path by looking into the search dirs */
   fs::path effectivePath = getEffectivePath(configPath);
@@ -152,8 +152,12 @@ PluginFactory::getRemapPlugin(const fs::path &configPath, int argc, char **argv,
     return nullptr;
   }
 
+  // We check if the plugins is enabled for reloading. Individual mixed plugins have the option to opt-out
+  // from being reloaded
+  const bool pluginReloadEnabled = isDSOReloadEnabled(effectivePath);
+
   /* Only one plugin with this effective path can be loaded by a plugin factory */
-  RemapPluginInfo *plugin = dynamic_cast<RemapPluginInfo *>(findByEffectivePath(effectivePath, dynamicReloadEnabled));
+  RemapPluginInfo *plugin = dynamic_cast<RemapPluginInfo *>(findByEffectivePath(effectivePath, pluginReloadEnabled));
   RemapPluginInst *inst   = nullptr;
 
   if (nullptr == plugin) {
@@ -164,7 +168,7 @@ PluginFactory::getRemapPlugin(const fs::path &configPath, int argc, char **argv,
 
     // if dynamic reload enabled then create a temporary location to copy .so and load from there
     // else load from original location
-    if (dynamicReloadEnabled) {
+    if (pluginReloadEnabled) {
       runtimePath /= _runtimeDir;
       runtimePath /= effectivePath.relative_path();
 
@@ -197,7 +201,7 @@ PluginFactory::getRemapPlugin(const fs::path &configPath, int argc, char **argv,
           delete plugin;
         }
 
-        if (dynamicReloadEnabled && _preventiveCleaning) {
+        if (pluginReloadEnabled && _preventiveCleaning) {
           clean(error);
         }
       } else {
@@ -215,6 +219,18 @@ PluginFactory::getRemapPlugin(const fs::path &configPath, int argc, char **argv,
   }
 
   return inst;
+}
+
+/**
+ * @brief
+ * @param
+ * @return
+ */
+bool
+PluginFactory::isDSOReloadEnabled(const fs::path &effectivePath) const
+{
+  // Global call.
+  return is_plugin_dso_enabled(effectivePath);
 }
 
 /**
@@ -254,9 +270,9 @@ PluginFactory::getEffectivePath(const fs::path &configPath)
  * @return plugin found or nullptr if not found
  */
 PluginDso *
-PluginFactory::findByEffectivePath(const fs::path &path, bool dynamicReloadEnabled)
+PluginFactory::findByEffectivePath(const fs::path &path, bool pluginReloadEnabled)
 {
-  return PluginDso::loadedPlugins()->findByEffectivePath(path, dynamicReloadEnabled);
+  return PluginDso::loadedPlugins()->findByEffectivePath(path, pluginReloadEnabled);
 }
 
 /**

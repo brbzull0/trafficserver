@@ -1966,6 +1966,18 @@ TSPluginRegister(const TSPluginRegistrationInfo *plugin_info)
   return TS_SUCCESS;
 }
 
+TSReturnCode
+TSPluginDSOReloadEnable(int enable_dso_reloading_flag)
+{
+  if (!plugin_reg_current) {
+    return TS_ERROR;
+  }
+
+  plugin_reg_current->dso_reloading_enabled = (enable_dso_reloading_flag != 0);
+
+  return TS_SUCCESS;
+}
+
 ////////////////////////////////////////////////////////////////////
 //
 // API file management

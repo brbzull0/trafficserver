@@ -94,7 +94,7 @@ public:
   PluginFactory &setRuntimeDir(const fs::path &runtimeDir);
   PluginFactory &addSearchDir(const fs::path &searchDir);
 
-  RemapPluginInst *getRemapPlugin(const fs::path &configPath, int argc, char **argv, std::string &error, bool dynamicReloadEnabled);
+  RemapPluginInst *getRemapPlugin(const fs::path &configPath, int argc, char **argv, std::string &error);
 
   virtual const char *getUuid();
   void clean(std::string &error);
@@ -104,8 +104,9 @@ public:
   void indicatePostReload(bool reloadSuccessful);
 
 protected:
-  PluginDso *findByEffectivePath(const fs::path &path, bool dynamicReloadEnabled);
+  PluginDso *findByEffectivePath(const fs::path &path, bool pluginReloadEnabled);
   fs::path getEffectivePath(const fs::path &configPath);
+  bool isDSOReloadEnabled(const fs::path &effectivePath) const;
 
   std::vector<fs::path> _searchDirs; /** @brief ordered list of search paths where we look for plugins */
   fs::path _runtimeDir;              /** @brief the path where we would create a temporary copies of the plugins to load */
