@@ -152,6 +152,12 @@ PluginFactory::getRemapPlugin(const fs::path &configPath, int argc, char **argv,
     return nullptr;
   }
 
+  // Some mixed plugins may want to opt out for the dynamic reload process.
+  if (dynamicReloadEnabled && hasMixedPluginOptOut(effectivePath)) {
+    // plugin not interested to be reload.
+    dynamicReloadEnabled = false;
+  }
+
   /* Only one plugin with this effective path can be loaded by a plugin factory */
   RemapPluginInfo *plugin = dynamic_cast<RemapPluginInfo *>(findByEffectivePath(effectivePath, dynamicReloadEnabled));
   RemapPluginInst *inst   = nullptr;
@@ -259,6 +265,12 @@ PluginFactory::findByEffectivePath(const fs::path &path, bool dynamicReloadEnabl
   return PluginDso::loadedPlugins()->findByEffectivePath(path, dynamicReloadEnabled);
 }
 
+bool
+PluginFactory::hasMixedPluginOptOut(const fs::path &path) const
+{
+  return PluginFactory::mixedPluginsOptOut().find(path);
+}
+
 /**
  * @brief Tell all plugins instantiated by this factory that the configuration
  * they are using is no longer the active one.
@@ -302,4 +314,19 @@ void
 PluginFactory::clean(std::string &error)
 {
   fs::remove(_runtimeDir, _ec);
+}
+
+// ReloadPluginsOptOutList member functions.
+bool
+PluginFactory::ReloadPluginsOptOutList::find(const fs::path &path) const
+{
+  const auto found = std::find_if(std::begin(this->mixedPluginPaths), std::end(this->mixedPluginPaths),
+                                  [&path](const auto &pluginPath) { return pluginPath == path; });
+  return (found != std::end(this->mixedPluginPaths));
+}
+
+void
+PluginFactory::ReloadPluginsOptOutList::add(fs::path path)
+{
+  this->mixedPluginPaths.push_front(path);
 }

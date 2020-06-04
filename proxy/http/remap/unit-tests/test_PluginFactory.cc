@@ -298,7 +298,6 @@ SCENARIO("loading plugins", "[plugin][core]")
     {
       fs::path configPath = searchDir / "subdir" / pluginName;
       CHECK(configPath.is_absolute()); /* make sure this is absolute path - this is what we are testing */
-
       setupConfigPathTest(configPath, buildPath, tempComponent, effectivePath, runtimePath);
       PluginFactoryUnitTest *factory = getFactory(tempComponent);
       RemapPluginInst *plugin        = factory->getRemapPlugin(configPath, 0, nullptr, error, isPluginDynamicReloadEnabled());
@@ -321,7 +320,6 @@ SCENARIO("loading plugins", "[plugin][core]")
       disablePluginDynamicReload();
       fs::path configPath = searchDir / "subdir" / pluginName;
       CHECK(configPath.is_absolute()); /* make sure this is absolute path - this is what we are testing */
-
       setupConfigPathTest(configPath, buildPath, tempComponent, effectivePath, runtimePath);
       PluginFactoryUnitTest *factory = getFactory(tempComponent);
       RemapPluginInst *plugin        = factory->getRemapPlugin(configPath, 0, nullptr, error, isPluginDynamicReloadEnabled());
@@ -330,6 +328,39 @@ SCENARIO("loading plugins", "[plugin][core]")
       {
         validateSuccessfulConfigPathTest(plugin, error, effectivePath, runtimePath);
         CHECK(nullptr != PluginDso::loadedPlugins()->findByEffectivePath(effectivePath, isPluginDynamicReloadEnabled()));
+
+        // check Dso still exists
+        CHECK(plugin->_plugin.effectivePath() == plugin->_plugin.runtimePath());
+        CHECK(fs::exists(plugin->_plugin.effectivePath()));
+      }
+
+      teardownConfigPathTest(factory);
+      enablePluginDynamicReload();
+    }
+
+    WHEN("config is using plugin absolute path - dynamic reload is DISABLED optout")
+    {
+      enablePluginDynamicReload();
+      fs::path configPath = searchDir / "subdir" / pluginName;
+      CHECK(configPath.is_absolute()); /* make sure this is absolute path - this is what we are testing */
+
+      // mark the plugin to opt out for reload, which in this case it will be ignored as it's the very first
+      // time.
+      PluginFactory::mixedPluginsOptOut().add(configPath);
+
+      // force the runtime be the same as effective as for dynamic reload  disabled.
+      disablePluginDynamicReload();
+      setupConfigPathTest(configPath, buildPath, tempComponent, effectivePath, runtimePath);
+      enablePluginDynamicReload();
+
+      PluginFactoryUnitTest *factory = getFactory(tempComponent);
+      RemapPluginInst *plugin        = factory->getRemapPlugin(configPath, 0, nullptr, error, isPluginDynamicReloadEnabled());
+
+      THEN("expect it to successfully load")
+      {
+        validateSuccessfulConfigPathTest(plugin, error, effectivePath, runtimePath);
+        static const bool disableDynamicReloadByOptOut{false};
+        CHECK(nullptr != PluginDso::loadedPlugins()->findByEffectivePath(effectivePath, disableDynamicReloadByOptOut));
 
         // check Dso still exists
         CHECK(plugin->_plugin.effectivePath() == plugin->_plugin.runtimePath());

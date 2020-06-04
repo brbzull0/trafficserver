@@ -74,6 +74,7 @@
 #include "I_Machine.h"
 #include "HttpProxyServerMain.h"
 #include "shared/overridable_txn_vars.h"
+#include "PluginFactory.h"
 
 #include "ts/ts.h"
 
@@ -1961,6 +1962,26 @@ TSPluginRegister(const TSPluginRegistrationInfo *plugin_info)
 
   if (plugin_info->support_email) {
     plugin_reg_current->support_email = ats_strdup(plugin_info->support_email);
+  }
+
+  return TS_SUCCESS;
+}
+
+////////////////////////////////////////////////////////////////////
+//
+// Disable Mixed plugin dynamic reload.
+//
+////////////////////////////////////////////////////////////////////
+TSReturnCode
+TSPluginDSOReloadEnable(int enable)
+{
+  if (!plugin_reg_current) {
+    return TS_ERROR;
+  }
+
+  if (enable == 0) {
+    // Flag the plugin  as not interested in the dynamic reload.
+    PluginFactory::mixedPluginsOptOut().add(ts::file::path{plugin_reg_current->plugin_path});
   }
 
   return TS_SUCCESS;

@@ -24,6 +24,7 @@
 #pragma once
 
 #include <vector>
+#include <forward_list>
 
 #include "tscore/Ptr.h"
 #include "PluginDso.h"
@@ -82,10 +83,23 @@ public:
  * filesystem links and different dl library implementations.
  *
  * @note This is meant to unify the way global and remap plugins are (re)loaded (global plugin support is not implemented yet).
+ * @note In the case of a mixed plugin, getRemapPlugin/dynamicReloadEnabled can be internally overwritten if the plugin opt out to
+ * take part in the dynamic reload process.
  */
 class PluginFactory
 {
   using PluginInstList = ts::IntrusiveDList<RemapPluginInst::Linkage>;
+
+  struct ReloadPluginsOptOutList {
+    // This will/should only be called by the TS API to disable a global/remap plugin to take part of the
+    // dynamic reload process.
+    void add(fs::path path);
+    // lookup if there is any mixed plugin who opt-out for the reload.
+    bool find(const fs::path &path) const;
+
+  private:
+    std::forward_list<fs::path> mixedPluginPaths;
+  };
 
 public:
   PluginFactory();
@@ -103,9 +117,18 @@ public:
   void indicatePreReload();
   void indicatePostReload(bool reloadSuccessful);
 
+  static ReloadPluginsOptOutList &
+  mixedPluginsOptOut()
+  {
+    static ReloadPluginsOptOutList optoutList;
+    return optoutList;
+  }
+
 protected:
   PluginDso *findByEffectivePath(const fs::path &path, bool dynamicReloadEnabled);
   fs::path getEffectivePath(const fs::path &configPath);
+  // check if the remap plugin previously opt out to take part in the dynamic reload.
+  bool hasMixedPluginOptOut(const fs::path &path) const;
 
   std::vector<fs::path> _searchDirs; /** @brief ordered list of search paths where we look for plugins */
   fs::path _runtimeDir;              /** @brief the path where we would create a temporary copies of the plugins to load */

@@ -162,6 +162,15 @@ int TSTrafficServerVersionGetPatch(void);
  */
 tsapi TSReturnCode TSPluginRegister(const TSPluginRegistrationInfo *plugin_info);
 
+/**
+   For plugins that are Global and Remap this function should be used to
+   disable the dynamic reload mechanism for caller plugin.
+
+   @param enable boolean flag. 0/false will disable the reload on the caller plugin.
+   @return TS_ERROR if failed.
+ */
+tsapi TSReturnCode TSPluginDSOReloadEnable(int enable);
+
 /* --------------------------------------------------------------------------
    Files */
 /**
