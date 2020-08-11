@@ -2211,6 +2211,7 @@ AC_CONFIG_FILES([
   mgmt/api/Makefile
   mgmt/api/include/Makefile
   mgmt/utils/Makefile
+  mgmt/rpc/Makefile
   plugins/Makefile
   proxy/Makefile
   proxy/hdrs/Makefile

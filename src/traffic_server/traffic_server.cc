@@ -102,6 +102,10 @@ extern "C" int plock(int);
 #include "tscore/ink_config.h"
 #include "P_SSLSNI.h"
 #include "P_SSLClientUtils.h"
+// JSON RPC protocol and server only includes.
+#include "rpc/jsonrpc/JsonRpc.h"
+#include "rpc/server/RpcServer.h"
+//#include "rpc/handlers/Admin.h"
 
 #if TS_USE_QUIC == 1
 #include "Http3.h"
@@ -236,6 +240,8 @@ struct AutoStopCont : public Continuation {
     }
 
     pmgmt->stop();
+    jsonrpcServer->stop();
+
     TSSystemState::shut_down_event_system();
     delete this;
     return EVENT_CONT;
@@ -680,6 +686,19 @@ initialize_process_manager()
                         RECP_NON_PERSISTENT);
   RecRegisterStatString(RECT_PROCESS, "proxy.process.version.server.build_person", appVersionInfo.BldPersonStr,
                         RECP_NON_PERSISTENT);
+}
+
+static void
+initialize_jsonrpc_server()
+{
+  // For now, server will be initialized with default values
+  auto serverConfig = jsonrpc::config::RPCConfig{};
+  // make some data available from the RPC.
+  jsonrpc::RPC::instance().register_internal_api();
+
+  jsonrpcServer = new rpc::RpcServer{serverConfig};
+  // rpc::admin::register_admin_jsonrpc_handlers();
+  jsonrpcServer->thread_start();
 }
 
 #define CMD_ERROR -2      // serious error, exit maintenance mode
@@ -1786,6 +1805,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
 
   // Local process manager
   initialize_process_manager();
+
+  initialize_jsonrpc_server();
 
   // Set the core limit for the process
   init_core_size();

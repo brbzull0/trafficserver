@@ -17,7 +17,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-SUBDIRS = utils api
+SUBDIRS = utils api rpc
 
 # Decoder ring:
 # 	libmgmt_c.la 	Configuration records (defaults).
