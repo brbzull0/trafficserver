@@ -35,7 +35,8 @@ TESTS = $(check_PROGRAMS)
 
 # TODO: Remove libmgmt_p.la This can only be removed once we remove the ProcessManager dependency and the librecords
 #       Message stuff between TM and TS
-
+# TODO: handlers - mgmt/utils needed as ProcessManager.h is included in many pleaces, we should be able to remove it once
+#       we move away from TM
 
 ###########################################################################################
 # Protocol library only, no transport.
@@ -121,8 +122,10 @@ test_jsonrpcserver_LDADD = \
 
 ###########################################################################################
 # Handlers only
+
 AM_CPPFLAGS += \
 	-I$(abs_top_srcdir)/mgmt/ \
+	-I$(abs_top_srcdir)/mgmt/utils \
 	-I$(abs_top_srcdir)/proxy/http \
 	-I$(abs_top_srcdir)/proxy/hdrs \
 	-I$(abs_top_srcdir)/proxy/
@@ -137,6 +140,8 @@ librpcpublichandlers_COMMON = \
     handlers/records/Records.h \
     handlers/metrics/Metrics.cc \
     handlers/metrics/Metrics.h \
+	handlers/storage/Storage.h \
+	handlers/storage/Storage.cc \
 	handlers/common/RecordsUtils.cc \
 	handlers/common/RecordsUtils.h \
 	handlers/common/Errors.cc \
