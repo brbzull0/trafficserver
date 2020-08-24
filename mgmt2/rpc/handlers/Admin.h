@@ -25,6 +25,7 @@
 #include "rpc/handlers/config/Configuration.h"
 #include "rpc/handlers/records/Records.h"
 #include "rpc/handlers/metrics/Metrics.h"
+#include "rpc/handlers/storage/Storage.h"
 
 namespace rpc::admin
 {
@@ -57,5 +58,8 @@ register_admin_jsonrpc_handlers()
   // server
 
   // storage
+  using namespace rpc::handlers::storage;
+  rpc::JsonRpc::instance().add_handler("admin_storage_set_device_offline", &set_storage_offline);
+  rpc::JsonRpc::instance().add_handler("admin_storage_get_device_status", &get_storage_status);
 }
 } // namespace rpc::admin
