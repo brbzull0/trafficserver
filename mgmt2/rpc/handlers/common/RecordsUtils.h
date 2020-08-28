@@ -32,13 +32,34 @@
 
 #include <yaml-cpp/yaml.h>
 
-namespace rpc::handlers::utils
+namespace rpc::handlers::errors
 {
-void push_error(std::error_code const &ec, ts::Errata &errata);
+enum class RecordError {
+  RECORD_NOT_FOUND = 100,
+  RECORD_NOT_CONFIG,
+  RECORD_NOT_METRIC,
+  INVALID_RECORD_NAME,
+  VALIDITY_CHECK_ERROR,
+  GENERAL_ERROR,
+  RECORD_WRITE_ERROR
+
+};
+std::error_code make_error_code(rpc::handlers::errors::RecordError e);
+} // namespace rpc::handlers::errors
+
+namespace std
+{
+template <> struct is_error_code_enum<rpc::handlers::errors::RecordError> : true_type {
+};
+
+} // namespace std
+
+namespace rpc::handlers::records::utils
+{
 using ValidateRecType = std::function<bool(RecT, std::error_code &)>;
 std::tuple<YAML::Node, std::error_code> get_yaml_record(std::string_view name, ValidateRecType check);
 std::tuple<YAML::Node, std::error_code> get_config_yaml_record(std::string_view name);
 
 std::tuple<YAML::Node, std::error_code> get_yaml_record_regex(std::string_view name, unsigned recType);
 
-} // namespace rpc::handlers::utils
+} // namespace rpc::handlers::records::utils

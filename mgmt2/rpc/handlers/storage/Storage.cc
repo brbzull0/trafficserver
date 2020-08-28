@@ -20,15 +20,14 @@
 
 #include "Storage.h"
 #include "tscore/BufferWriter.h"
-#include "../common/Errors.h"
 
 #include "P_Cache.h"
 
 namespace rpc::handlers::storage::field_names
 {
-static constexpr auto Path{"path"};
-static constexpr auto Status{"status"};
-static constexpr auto Errors{"error_count"};
+static constexpr auto PATH{"path"};
+static constexpr auto STATUS{"status"};
+static constexpr auto ERRORS{"error_count"};
 } // namespace rpc::handlers::storage::field_names
 
 namespace YAML
@@ -40,9 +39,9 @@ template <> struct convert<CacheDisk> {
     namespace field = rpc::handlers::storage::field_names;
     Node node;
     try {
-      node[field::Path]   = cdisk.path;
-      node[field::Status] = (cdisk.online ? "online" : "offline");
-      node[field::Errors] = cdisk.num_errors;
+      node[field::PATH]   = cdisk.path;
+      node[field::STATUS] = (cdisk.online ? "online" : "offline");
+      node[field::ERRORS] = cdisk.num_errors;
     } catch (std::exception const &e) {
       return node;
     }
