@@ -30,16 +30,17 @@
 #include "tscore/Diags.h"
 
 #include "rpc/handlers/common/RecordsUtils.h"
-#include "rpc/handlers/common/Errors.h"
+#include "rpc/handlers/common/ErrorId.h"
 
 namespace rpc::handlers::config
 {
-static unsigned configRecType = RECT_CONFIG | RECT_LOCAL;
+static unsigned configRecType  = RECT_CONFIG | RECT_LOCAL;
+static constexpr auto ERROR_ID = rpc::handlers::errors::ID::Configuration;
 
 ts::Rv<YAML::Node>
 get_config_records(std::string_view const &id, YAML::Node const &params)
 {
-  using namespace rpc::handlers::utils;
+  using namespace rpc::handlers::records::utils;
   ts::Rv<YAML::Node> resp;
   std::error_code ec;
 
@@ -65,7 +66,7 @@ get_config_records(std::string_view const &id, YAML::Node const &params)
   }
 
   if (ec) {
-    push_error(ec, resp.errata());
+    push_error(ERROR_ID, ec, resp.errata());
   }
 
   return resp;
@@ -74,7 +75,7 @@ get_config_records(std::string_view const &id, YAML::Node const &params)
 ts::Rv<YAML::Node>
 get_config_records_regex(std::string_view const &id, YAML::Node const &params)
 {
-  using namespace rpc::handlers::utils;
+  using namespace rpc::handlers::records::utils;
   ts::Rv<YAML::Node> resp;
   std::error_code ec;
   for (auto &&element : params) {
@@ -92,7 +93,7 @@ get_config_records_regex(std::string_view const &id, YAML::Node const &params)
   }
 
   if (ec) {
-    push_error(ec, resp.errata());
+    push_error(ERROR_ID, ec, resp.errata());
   }
 
   return resp;
@@ -103,12 +104,12 @@ get_all_config_records(std::string_view const &id, YAML::Node const &params)
 {
   ts::Rv<YAML::Node> resp;
   static constexpr std::string_view all{".*"};
-  using namespace rpc::handlers::utils;
+  using namespace rpc::handlers::records::utils;
 
   auto &&[node, error] = get_yaml_record_regex(all, configRecType);
 
   if (error) {
-    push_error(error, resp.errata());
+    push_error(ERROR_ID, error, resp.errata());
     return resp;
   }
 
@@ -213,7 +214,7 @@ set_config_records(std::string_view const &id, YAML::Node const &params)
   }
 
   if (ec) {
-    rpc::handlers::utils::push_error(ec, resp.errata());
+    push_error(ERROR_ID, ec, resp.errata());
   }
 
   return resp;

@@ -1,4 +1,4 @@
-/* @file
+/**
    @section license License
 
   Licensed to the Apache Software Foundation (ASF) under one
@@ -18,25 +18,68 @@
   limitations under the License.
 */
 #include "RecordsUtils.h"
-#include "Errors.h"
-
 #include "convert.h"
 
-// check if the config record is overridable.
-// #include "shared/overridable_txn_vars.h"
-
-#include <system_error> // TODO: remove
+#include <system_error>
 #include <string>
 
-namespace rpc::handlers::utils
+namespace
+{ // anonymous namespace
+
+struct RPCRecordErrorCategory : std::error_category {
+  const char *name() const noexcept override;
+  std::string message(int ev) const override;
+};
+
+const char *
+RPCRecordErrorCategory::name() const noexcept
 {
-void
-push_error(std::error_code const &ec, ts::Errata &errata)
+  return "rpc_handler_config";
+}
+// READ_ERROR = 1, RECORD_NOT_CONFIG, YAML_READ_ERROR };
+std::string
+RPCRecordErrorCategory::message(int ev) const
 {
-  static const int DefaultErrataId{3};
-  errata.push(DefaultErrataId, ec.value(), ec.message());
+  switch (static_cast<rpc::handlers::errors::RecordError>(ev)) {
+  case rpc::handlers::errors::RecordError::RECORD_NOT_FOUND:
+    return {"Record not found."};
+  case rpc::handlers::errors::RecordError::RECORD_NOT_CONFIG:
+    return {"Record is not a configuration type."};
+  case rpc::handlers::errors::RecordError::RECORD_NOT_METRIC:
+    return {"Record is not a metric type."};
+  case rpc::handlers::errors::RecordError::INVALID_RECORD_NAME:
+    return {"Invalid Record Name."};
+  case rpc::handlers::errors::RecordError::VALIDITY_CHECK_ERROR:
+    return {"Validity check failed."};
+  case rpc::handlers::errors::RecordError::GENERAL_ERROR:
+    return {"Error reading the record."};
+  case rpc::handlers::errors::RecordError::RECORD_WRITE_ERROR:
+    return {"We could not write the record."};
+  default:
+    return "Rpc server  config error " + std::to_string(ev);
+  }
 }
 
+const RPCRecordErrorCategory &
+get_record_error_category()
+{
+  static RPCRecordErrorCategory rpcRecordErrorCategory;
+  return rpcRecordErrorCategory;
+}
+
+} // anonymous namespace
+
+namespace rpc::handlers::errors
+{
+std::error_code
+make_error_code(rpc::handlers::errors::RecordError e)
+{
+  return {static_cast<int>(e), get_record_error_category()};
+}
+} // namespace rpc::handlers::errors
+
+namespace rpc::handlers::records::utils
+{
 struct Context {
   using CbType = std::function<bool(RecT, std::error_code &)>;
   YAML::Node yaml;
@@ -158,4 +201,4 @@ get_yaml_record_regex(std::string_view name, unsigned recType)
   return {ctx.yaml, ctx.ec};
 }
 
-} // namespace rpc::handlers::utils
+} // namespace rpc::handlers::records::utils

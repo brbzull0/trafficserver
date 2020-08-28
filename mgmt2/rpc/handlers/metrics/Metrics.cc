@@ -19,20 +19,21 @@
 */
 
 #include "Metrics.h"
-#include "rpc/handlers/common/Errors.h"
 #include "rpc/handlers/common/RecordsUtils.h"
+#include "rpc/handlers/common/ErrorId.h"
 
 namespace rpc::handlers::metrics
 {
 static unsigned STATS_RECORD_TYPES = RECT_PROCESS | RECT_PLUGIN | RECT_NODE;
 static constexpr auto logTag{"rpc.metric"};
+static constexpr auto ERROR_ID = rpc::handlers::errors::ID::Metrics;
+
 ts::Rv<YAML::Node>
 get_metric_records(std::string_view const &id, YAML::Node const &params)
 {
   ts::Rv<YAML::Node> resp;
 
-  Debug(logTag, "getting some metrics. id %s", id.data());
-  using namespace rpc::handlers::utils;
+  using namespace rpc::handlers::records::utils;
   std::error_code ec;
 
   auto check = [](RecT rec_type, std::error_code &ec) {
@@ -56,7 +57,7 @@ get_metric_records(std::string_view const &id, YAML::Node const &params)
   }
 
   if (ec) {
-    push_error(ec, resp.errata());
+    push_error(ERROR_ID, ec, resp.errata());
   }
 
   return resp;
@@ -65,7 +66,7 @@ get_metric_records(std::string_view const &id, YAML::Node const &params)
 ts::Rv<YAML::Node>
 get_metric_records_regex(std::string_view const &id, YAML::Node const &params)
 {
-  using namespace rpc::handlers::utils;
+  using namespace rpc::handlers::records::utils;
 
   ts::Rv<YAML::Node> resp;
   std::error_code ec;
@@ -86,7 +87,7 @@ get_metric_records_regex(std::string_view const &id, YAML::Node const &params)
   }
 
   if (ec) {
-    push_error(ec, resp.errata());
+    push_error(ERROR_ID, ec, resp.errata());
   }
 
   return resp;
@@ -95,12 +96,12 @@ get_metric_records_regex(std::string_view const &id, YAML::Node const &params)
 ts::Rv<YAML::Node>
 clear_all_metrics(std::string_view const &id, YAML::Node const &params)
 {
-  using namespace rpc::handlers::utils;
+  using namespace rpc::handlers::records::utils;
   ts::Rv<YAML::Node> resp;
   Debug(logTag, "Cleaning metrics.");
   if (RecResetStatRecord(RECT_NULL, true) != REC_ERR_OKAY) {
     Debug(logTag, "Error while cleaning the stats.");
-    push_error({rpc::handlers::errors::RecordError::RECORD_WRITE_ERROR}, resp.errata());
+    push_error(ERROR_ID, {rpc::handlers::errors::RecordError::RECORD_WRITE_ERROR}, resp.errata());
   }
 
   return resp;
@@ -109,14 +110,14 @@ clear_all_metrics(std::string_view const &id, YAML::Node const &params)
 ts::Rv<YAML::Node>
 clear_metrics(std::string_view const &id, YAML::Node const &params)
 {
-  using namespace rpc::handlers::utils;
+  using namespace rpc::handlers::records::utils;
   ts::Rv<YAML::Node> resp;
 
   for (auto &&element : params) {
     auto const &name = element.as<std::string>();
     if (!name.empty()) {
       if (RecResetStatRecord(name.data()) != REC_ERR_OKAY) {
-        push_error({rpc::handlers::errors::RecordError::RECORD_WRITE_ERROR}, resp.errata());
+        push_error(ERROR_ID, {rpc::handlers::errors::RecordError::RECORD_WRITE_ERROR}, resp.errata());
       }
     }
   }
