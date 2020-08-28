@@ -21,25 +21,21 @@
 #pragma once
 
 #include <system_error>
+#include "tscore/Errata.h"
 
 namespace rpc::handlers::errors
 {
-enum class RecordError {
-  RECORD_NOT_FOUND = 100,
-  RECORD_NOT_CONFIG,
-  RECORD_NOT_METRIC,
-  INVALID_RECORD_NAME,
-  VALIDITY_CHECK_ERROR,
-  GENERAL_ERROR,
-  RECORD_WRITE_ERROR
+enum class ID : int { Configuration = 1, Metrics, Records, Server, Storage, Generic };
 
-};
-std::error_code make_error_code(rpc::handlers::errors::RecordError e);
-} // namespace rpc::handlers::errors
-
-namespace std
+template <typename EnumType>
+constexpr auto
+to_integral(EnumType e) -> typename std::underlying_type<EnumType>::type
 {
-template <> struct is_error_code_enum<rpc::handlers::errors::RecordError> : true_type {
-};
-
-} // namespace std
+  return static_cast<typename std::underlying_type<EnumType>::type>(e);
+}
+static inline void
+push_error(ID id, std::error_code const &ec, ts::Errata &errata)
+{
+  errata.push(to_integral(id), ec.value(), ec.message());
+}
+} // namespace rpc::handlers::errors

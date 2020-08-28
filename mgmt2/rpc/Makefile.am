@@ -144,8 +144,6 @@ librpcpublichandlers_COMMON = \
 	handlers/storage/Storage.cc \
 	handlers/common/RecordsUtils.cc \
 	handlers/common/RecordsUtils.h \
-	handlers/common/Errors.cc \
-	handlers/common/Errors.h \
 	handlers/Admin.h \
 	$(top_builddir)/src/shared/overridable_txn_vars.cc
 
