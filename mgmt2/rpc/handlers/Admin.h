@@ -26,6 +26,7 @@
 #include "rpc/handlers/records/Records.h"
 #include "rpc/handlers/metrics/Metrics.h"
 #include "rpc/handlers/storage/Storage.h"
+#include "rpc/handlers/server/Server.h"
 
 namespace rpc::admin
 {
@@ -56,6 +57,9 @@ register_admin_jsonrpc_handlers()
   // alarms
 
   // server
+  using namespace rpc::handlers::server;
+  rpc::JsonRpc::instance().add_handler("admin_server_start_drain", &server_start_drain);
+  rpc::JsonRpc::instance().add_handler("admin_server_stop_drain", &server_stop_drain);
 
   // storage
   using namespace rpc::handlers::storage;
