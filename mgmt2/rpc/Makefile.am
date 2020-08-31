@@ -1,5 +1,5 @@
 #
-# Makefile.am for the Enterprise Management module.
+# Makefile.am for the RPC/jsonrpc module
 #
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file

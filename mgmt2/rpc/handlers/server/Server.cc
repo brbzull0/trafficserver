@@ -59,7 +59,8 @@ template <> struct convert<rpc::handlers::server::DrainInfo> {
 
 namespace rpc::handlers::server
 {
-static constexpr auto ERROR_ID = rpc::handlers::errors::ID::Server;
+namespace err                  = rpc::handlers::errors;
+static constexpr auto ERROR_ID = err::ID::Server;
 
 static bool
 is_server_draining()
@@ -91,13 +92,13 @@ server_start_drain(std::string_view const &id, YAML::Node const &params)
     if (!is_server_draining()) {
       set_server_drain(true);
     } else {
-      resp.errata().push(static_cast<int>(ERROR_ID), 1, "Server already draining.");
+      resp.errata().push(err::to_integral(ERROR_ID), 1, "Server already draining.");
     }
   } catch (std::exception const &ex) {
     Debug("rpc.handler.server", "Got an error DrainInfo decoding: %s", ex.what());
     std::string text;
     ts::bwprint(text, "Error found during server drain: {}", ex.what());
-    resp.errata().push(static_cast<int>(ERROR_ID), 1, text);
+    resp.errata().push(err::to_integral(ERROR_ID), 1, text);
   }
   return resp;
 }
@@ -110,7 +111,7 @@ server_stop_drain(std::string_view const &id, YAML::Node const &)
   if (is_server_draining()) {
     set_server_drain(false);
   } else {
-    resp.errata().push(static_cast<int>(ERROR_ID), 1, "Server is not draining.");
+    resp.errata().push(err::to_integral(ERROR_ID), 1, "Server is not draining.");
   }
 
   return resp;
