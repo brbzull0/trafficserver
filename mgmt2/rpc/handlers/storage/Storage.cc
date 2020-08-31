@@ -20,7 +20,7 @@
 
 #include "Storage.h"
 #include "tscore/BufferWriter.h"
-
+#include "rpc/handlers/common/ErrorId.h"
 #include "P_Cache.h"
 
 namespace rpc::handlers::storage::field_names
@@ -56,7 +56,8 @@ template <> struct convert<CacheDisk> {
 
 namespace rpc::handlers::storage
 {
-static constexpr int StorageErrorId{4};
+namespace err                  = rpc::handlers::errors;
+static constexpr auto ERROR_ID = err::ID::Storage;
 
 ts::Rv<YAML::Node>
 set_storage_offline(std::string_view const &id, YAML::Node const &params)
@@ -77,7 +78,7 @@ set_storage_offline(std::string_view const &id, YAML::Node const &params)
     } else {
       std::string text;
       ts::bwprint(text, "Passed device:'{}' does not match any defined storage", device);
-      resp.errata().push(StorageErrorId, 1, text);
+      resp.errata().push(err::to_integral(ERROR_ID), 1, text);
     }
   }
   return resp;
@@ -97,7 +98,7 @@ get_storage_status(std::string_view const &id, YAML::Node const &params)
     } else {
       std::string text;
       ts::bwprint(text, "Passed device:'{}' does not match any defined storage", device);
-      resp.errata().push(StorageErrorId, 1, text);
+      resp.errata().push(err::to_integral(ERROR_ID), 1, text);
     }
   }
   return resp;
