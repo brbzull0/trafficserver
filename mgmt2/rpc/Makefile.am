@@ -137,11 +137,13 @@ librpcpublichandlers_COMMON = \
 	handlers/config/ConfigUtils.h \
 	handlers/config/ConfigErrors.cc \
 	handlers/records/Records.cc \
-    handlers/records/Records.h \
-    handlers/metrics/Metrics.cc \
-    handlers/metrics/Metrics.h \
+	handlers/records/Records.h \
+	handlers/metrics/Metrics.cc \
+	handlers/metrics/Metrics.h \
 	handlers/storage/Storage.h \
 	handlers/storage/Storage.cc \
+	handlers/server/Server.h \
+	handlers/server/Server.cc \
 	handlers/common/RecordsUtils.cc \
 	handlers/common/RecordsUtils.h \
 	handlers/Admin.h \
