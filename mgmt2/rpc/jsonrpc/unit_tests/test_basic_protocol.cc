@@ -195,7 +195,7 @@ TEST_CASE("Valid json but invalid messages", "[errors]")
   {
     const auto resp = rpc.handle_call(R"({})");
     REQUIRE(resp);
-    std::string_view expected = R"({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~})";
+    std::string_view expected = R"({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}})";
     REQUIRE(*resp == expected);
   }
 
@@ -204,7 +204,7 @@ TEST_CASE("Valid json but invalid messages", "[errors]")
     const auto resp = rpc.handle_call(R"([{},{}])");
     REQUIRE(resp);
     std::string_view expected =
-      R"([{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~}, {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~}])";
+      R"([{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}}, {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}}])";
     REQUIRE(*resp == expected);
   }
 }
@@ -221,7 +221,7 @@ TEST_CASE("Invalid json messages", "[errors][invalid json]")
 
     REQUIRE(resp);
 
-    std::string_view expected = R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": ~})";
+    std::string_view expected = R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}})";
     REQUIRE(*resp == expected);
   }
 }
@@ -297,7 +297,7 @@ TEST_CASE("Invalid parameters base on the jsonrpc 2.0 protocol", "[protocol]")
         R"({"jsonrpc": "2.0", "method": "test_callback_ok_or_error", "params": {"return_error": "no"}, "id": null})");
       REQUIRE(resp);
       const std::string_view expected =
-        R"({"jsonrpc": "2.0", "error": {"code": 8, "message": "Use of null as id is discouraged"}, "id": ~})";
+        R"({"jsonrpc": "2.0", "error": {"code": 8, "message": "Use of null as id is discouraged"}})";
       REQUIRE(*resp == expected);
     }
   }
@@ -479,7 +479,7 @@ TEST_CASE("Basic tests from the jsonrpc 2.0 doc.")
 
     const auto resp = rpc.handle_call(R"({"jsonrpc": "2.0", "method": "foobar, "params": "bar", "baz])");
     REQUIRE(resp);
-    REQUIRE(*resp == R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": ~})");
+    REQUIRE(*resp == R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}})");
   }
   SECTION("rpc call with invalid Request object")
   {
@@ -493,14 +493,14 @@ TEST_CASE("Basic tests from the jsonrpc 2.0 doc.")
     const auto resp =
       rpc.handle_call(R"( {"jsonrpc": "2.0", "method": "sum", "params": [1,2,4], "id": "1"}, {"jsonrpc": "2.0", "method")");
     REQUIRE(resp);
-    REQUIRE(*resp == R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": ~})");
+    REQUIRE(*resp == R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}})");
   }
   SECTION("rpc call with an empty Array")
   {
     JsonRpcUnitTest rpc;
     const auto resp = rpc.handle_call(R"([])");
     REQUIRE(resp);
-    std::string_view expected = R"({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~})";
+    std::string_view expected = R"({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}})";
     REQUIRE(*resp == expected);
   }
   SECTION("rpc call with an invalid Batch")
@@ -508,7 +508,7 @@ TEST_CASE("Basic tests from the jsonrpc 2.0 doc.")
     JsonRpcUnitTest rpc;
     const auto resp = rpc.handle_call(R"([1])");
     REQUIRE(resp);
-    std::string_view expected = R"([{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~}])";
+    std::string_view expected = R"([{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}}])";
     REQUIRE(*resp == expected);
   }
   SECTION("rpc call with invalid Batch")
@@ -517,7 +517,7 @@ TEST_CASE("Basic tests from the jsonrpc 2.0 doc.")
     const auto resp = rpc.handle_call(R"([1,2,3])");
     REQUIRE(resp);
     std::string_view expected =
-      R"([{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~}, {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~}, {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": ~}])";
+      R"([{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}}, {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}}, {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}}])";
     REQUIRE(*resp == expected);
   }
 
