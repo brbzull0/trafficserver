@@ -22,8 +22,9 @@
 
 #include <tuple>
 
-#include "../config/ConfigErrors.h"
-#include "../config/ConfigUtils.h"
+#include "rpc/handlers/config/ConfigErrors.h"
+#include "rpc/handlers/config/ConfigUtils.h"
+#include "rpc/handlers/common/convert.h"
 
 #include "records/I_RecCore.h"
 #include "records/P_RecCore.h"

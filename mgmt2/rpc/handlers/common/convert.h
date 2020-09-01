@@ -66,7 +66,7 @@ template <> struct convert<RecRecord> {
       node[field::Order]        = record.order;
       node[field::Access]       = static_cast<int>(record.config_meta.access_type);
       node[field::UpdateStatus] = static_cast<int>(record.config_meta.update_required);
-      node[field::UpdateType]   = static_cast<int>(record.config_meta.update_type);
+      node[field::UpdateType]   = record.config_meta.update_type;
       node[field::CheckType]    = static_cast<int>(record.config_meta.check_type);
       node[field::Source]       = static_cast<int>(record.config_meta.source);
       node[field::SyntaxCheck]  = record.config_meta.check_expr ? record.config_meta.check_expr : "null";
@@ -107,6 +107,14 @@ template <> struct convert<RecRecord> {
     }
 
     return node;
+  }
+};
+
+template <> struct convert<RecUpdateT> {
+  static Node
+  encode(const RecUpdateT &type)
+  {
+    return Node{static_cast<int>(type)};
   }
 };
 } // namespace YAML
