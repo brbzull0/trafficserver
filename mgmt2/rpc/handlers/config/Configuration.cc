@@ -34,6 +34,40 @@
 
 namespace rpc::handlers::config
 {
+using NameValuePair = std::pair<std::string, std::string>;
+} // namespace rpc::handlers::config
+namespace rpc::handlers::config::field_names
+{
+static constexpr auto RECORD_NAME{"record_name"};
+static constexpr auto RECORD_VALUE{"record_value"};
+} // namespace rpc::handlers::config::field_names
+
+namespace YAML
+{
+namespace config = rpc::handlers::config;
+template <> struct convert<config::NameValuePair> {
+  static bool
+  decode(Node const &node, config::NameValuePair &info)
+  {
+    using namespace config::field_names;
+    try {
+      if (node[RECORD_NAME] && node[RECORD_VALUE]) {
+        info.first  = node[RECORD_NAME].as<std::string>();
+        info.second = node[RECORD_VALUE].as<std::string>();
+        return true;
+      }
+    } catch (YAML::Exception const &ex) {
+      // ignore, just let it fail(return false)
+      // TODO: we may need to find a way to let this error travel higher up
+    }
+    return false;
+  }
+};
+
+} // namespace YAML
+
+namespace rpc::handlers::config
+{
 static unsigned configRecType  = RECT_CONFIG | RECT_LOCAL;
 static constexpr auto ERROR_ID = rpc::handlers::errors::ID::Configuration;
 
@@ -100,7 +134,7 @@ get_config_records_regex(std::string_view const &id, YAML::Node const &params)
 }
 
 ts::Rv<YAML::Node>
-get_all_config_records(std::string_view const &id, YAML::Node const &params)
+get_all_config_records(std::string_view const &id, [[maybe_unused]] YAML::Node const &params)
 {
   ts::Rv<YAML::Node> resp;
   static constexpr std::string_view all{".*"};
@@ -127,9 +161,7 @@ set_config_records(std::string_view const &id, YAML::Node const &params)
   using Context = std::tuple<RecDataT, RecUpdateT, RecCheckT, const char *>;
 
   for (auto const &kv : params) {
-    // we need to get the record
-    auto const &name  = kv["record_name"].as<std::string>();
-    auto const &value = kv["new_value"].as<std::string>();
+    auto const &[name, value] = kv.as<NameValuePair>();
 
     Context recordCtx;
 
@@ -208,9 +240,9 @@ set_config_records(std::string_view const &id, YAML::Node const &params)
     // Set the response.
     auto &result = resp.result();
 
-    result["record_name"] = name;
-    // TODO: make this properly.
-    result["update_status"] = static_cast<int>(updateType);
+    result["record_name"]   = name;
+    result["new_value"]     = value;
+    result["update_status"] = updateType;
   }
 
   if (ec) {

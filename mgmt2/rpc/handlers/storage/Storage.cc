@@ -69,8 +69,9 @@ set_storage_offline(std::string_view const &id, YAML::Node const &params)
     CacheDisk *d       = cacheProcessor.find_by_path(device.c_str(), (device.size()));
 
     if (d) {
-      YAML::Node n;
       Debug("rpc.server", "Marking %s offline", device.c_str());
+
+      YAML::Node n;
       auto ret                     = cacheProcessor.mark_storage_offline(d, /* admin */ true);
       n["path"]                    = device;
       n["has_online_storage_left"] = ret ? "true" : "false";
