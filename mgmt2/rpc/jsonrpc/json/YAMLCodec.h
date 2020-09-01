@@ -195,12 +195,12 @@ private:
   static void
   encode(const std::optional<std::string> &id, YAML::Emitter &json)
   {
-    json << YAML::Key << "id" << YAML::Value;
     // workaround, we should find a better way, we should be able to us null.
     if (id) {
-      json << *id;
+      json << YAML::Key << "id" << YAML::Value << *id;
     } else {
-      json << YAML::Null;
+      // We do not insert null as it will break the json, we need null and not ~
+      // json << YAML::Null;
     }
   }
 
