@@ -225,7 +225,7 @@ TEST_CASE("Test with invalid json message", "[socket]")
     ScopedLocalSocket rpc_client;
     auto resp = rpc_client.connect().send(json).read();
 
-    REQUIRE(resp == R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": ~})");
+    CHECK(resp == R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}})");
   }
   REQUIRE(rpc::JsonRpc::instance().remove_handler("do_nothing"));
 }
