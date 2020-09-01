@@ -29,7 +29,6 @@
 #include <yaml-cpp/yaml.h>
 
 #include "ConfigErrors.h"
-// TODO: replace by I_RecCode?
 #include "records/I_RecCore.h"
 
 namespace rpc::handlers::config::utils

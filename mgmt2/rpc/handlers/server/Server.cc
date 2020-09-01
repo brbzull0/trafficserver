@@ -1,4 +1,4 @@
-/* @file
+/**
    @section license License
 
   Licensed to the Apache Software Foundation (ASF) under one
@@ -23,6 +23,7 @@
 #include "P_Cache.h"
 #include <tscore/TSSystemState.h>
 #include "rpc/handlers/common/ErrorId.h"
+#include "rpc/handlers/common/Utils.h"
 
 namespace rpc::handlers::server
 {
@@ -42,15 +43,13 @@ template <> struct convert<rpc::handlers::server::DrainInfo> {
   decode(const Node &node, rpc::handlers::server::DrainInfo &rhs)
   {
     namespace field = rpc::handlers::server::field_names;
+    namespace utils = rpc::handlers::utils;
     if (!node.IsMap()) {
       return false;
     }
     // optional
-    if (auto n = node[field::NEW_CONNECTIONS]) {
-      auto val = n.as<std::string>();
-      if (val == "true" || val == "yes" || val == "1") {
-        rhs.noNewConnections = true;
-      }
+    if (auto n = node[field::NEW_CONNECTIONS]; utils::is_true_flag(n)) {
+      rhs.noNewConnections = true;
     }
     return true;
   }
@@ -86,7 +85,7 @@ server_start_drain(std::string_view const &id, YAML::Node const &params)
     if (!params.IsNull()) {
       DrainInfo di = params.as<DrainInfo>();
       Debug("rpc.server", "draining - No new connections %s", (di.noNewConnections ? "yes" : "no"));
-      // TODO: no new connections flag -  implement with the right metric
+      // TODO: no new connections flag -  implement with the right metric / unimplemented in traffic_ctl
     }
 
     if (!is_server_draining()) {
@@ -104,10 +103,9 @@ server_start_drain(std::string_view const &id, YAML::Node const &params)
 }
 
 ts::Rv<YAML::Node>
-server_stop_drain(std::string_view const &id, YAML::Node const &)
+server_stop_drain(std::string_view const &id, [[maybe_unused]] YAML::Node const &params)
 {
   ts::Rv<YAML::Node> resp;
-  // TODO: no new connections flag -  implement with the right metric
   if (is_server_draining()) {
     set_server_drain(false);
   } else {
