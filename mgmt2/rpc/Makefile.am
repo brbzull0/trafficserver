@@ -27,7 +27,7 @@ AM_CPPFLAGS += \
 	@YAMLCPP_INCLUDES@
 
 
-noinst_LTLIBRARIES = libjsonrpc_protocol.la libjsonrpc_server.la
+noinst_LTLIBRARIES = libjsonrpc_protocol.la libjsonrpc_server.la librpcpublichandlers.la
 check_PROGRAMS = test_jsonrpc test_jsonrpcserver
 
 
@@ -117,6 +117,36 @@ test_jsonrpcserver_LDADD = \
 	$(top_builddir)/mgmt/libmgmt_p.la \
 	$(top_builddir)/proxy/shared/libUglyLogStubs.a \
 	@YAMLCPP_LIBS@
+
+
+###########################################################################################
+# Handlers only
+AM_CPPFLAGS += \
+	-I$(abs_top_srcdir)/mgmt/ \
+	-I$(abs_top_srcdir)/proxy/http \
+	-I$(abs_top_srcdir)/proxy/hdrs \
+	-I$(abs_top_srcdir)/proxy/
+
+librpcpublichandlers_COMMON = \
+	handlers/config/Configuration.cc \
+	handlers/config/Configuration.h \
+	handlers/config/ConfigUtils.cc \
+	handlers/config/ConfigUtils.h \
+	handlers/config/ConfigErrors.cc \
+	handlers/records/Records.cc \
+	handlers/records/Records.h \
+	handlers/common/RecordsUtils.cc \
+	handlers/common/RecordsUtils.h \
+	handlers/common/Errors.cc \
+	handlers/common/Errors.h \
+	handlers/Admin.h \
+	$(top_builddir)/src/shared/overridable_txn_vars.cc
+
+
+librpcpublichandlers_la_SOURCES = \
+    $(librpcpublichandlers_COMMON)
+
+# TODO: Add test
 
 include $(top_srcdir)/build/tidy.mk
 
