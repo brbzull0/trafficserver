@@ -106,6 +106,7 @@ extern "C" int plock(int);
 // JSON RPC protocol and server only includes.
 #include "rpc/jsonrpc/JsonRpc.h"
 #include "rpc/server/RpcServer.h"
+#include "rpc/handlers/Admin.h"
 
 #if TS_USE_QUIC == 1
 #include "Http3.h"
@@ -710,8 +711,9 @@ initialize_jsonrpc_server()
   // For now, server will be initialized with default values
   auto serverConfig = rpc::config::RPCConfig{};
 
-  // Register API to provide registered handler information.
-  rpc::JsonRpc::instance().register_internal_api();
+  // Register admin handlers.
+  rpc::admin::register_admin_jsonrpc_handlers();
+
   // create and start the server.
   jsonrpcServer = new rpc::RpcServer{serverConfig};
   jsonrpcServer->thread_start();
