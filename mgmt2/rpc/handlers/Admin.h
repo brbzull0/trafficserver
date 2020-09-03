@@ -41,6 +41,7 @@ register_admin_jsonrpc_handlers()
   rpc::JsonRpc::instance().add_handler("admin_config_get_records_regex", &get_config_records_regex);
   rpc::JsonRpc::instance().add_handler("admin_config_get_all_records", &get_all_config_records);
   rpc::JsonRpc::instance().add_handler("admin_config_set_records", &set_config_records);
+  rpc::JsonRpc::instance().add_handler("admin_config_reload", &reload_config);
 
   using namespace rpc::handlers::records;
   rpc::JsonRpc::instance().add_handler("admin_record_get_records_info", &get_records);

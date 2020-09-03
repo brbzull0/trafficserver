@@ -108,6 +108,8 @@ extern "C" int plock(int);
 #include "rpc/server/RpcServer.h"
 #include "rpc/handlers/Admin.h"
 
+#include "config/FileManager.h"
+
 #if TS_USE_QUIC == 1
 #include "Http3.h"
 #include "Http3Config.h"
@@ -703,6 +705,14 @@ initialize_process_manager()
                         RECP_NON_PERSISTENT);
   RecRegisterStatString(RECT_PROCESS, "proxy.process.version.server.build_person", appVersionInfo.BldPersonStr,
                         RECP_NON_PERSISTENT);
+}
+
+extern void initializeRegistry();
+
+static void
+initialize_file_manager()
+{
+  initializeRegistry();
 }
 
 static void
@@ -1829,6 +1839,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // Local process manager
   initialize_process_manager();
 
+  // Initialize file manager for TS.
+  initialize_file_manager();
   // JSONRPC server and handlers
   initialize_jsonrpc_server();
 
@@ -2320,12 +2332,15 @@ static void
 load_ssl_file_callback(const char *ssl_file)
 {
   pmgmt->signalConfigFileChild(ts::filename::SSL_MULTICERT, ssl_file);
+  FileManager::instance().configFileChild(ts::filename::SSL_MULTICERT, ssl_file);
 }
 
 void
 load_config_file_callback(const char *parent_file, const char *remap_file)
 {
   pmgmt->signalConfigFileChild(parent_file, remap_file);
+  // TODO: for now in both
+  FileManager::instance().configFileChild(parent_file, remap_file);
 }
 
 static void

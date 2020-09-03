@@ -26,6 +26,8 @@
 #include "records/P_RecCore.h"
 #include "tscore/Diags.h"
 
+#include "config/FileManager.h"
+
 #include "rpc/handlers/common/RecordsUtils.h"
 #include "rpc/handlers/common/ErrorId.h"
 
@@ -275,6 +277,27 @@ set_config_records(std::string_view const &id, YAML::Node const &params)
   if (ec) {
     push_error(ERROR_ID, ec, resp.errata());
   }
+
+  return resp;
+}
+
+ts::Rv<YAML::Node>
+reload_config(std::string_view const &id, YAML::Node const &params)
+{
+  ts::Rv<YAML::Node> resp;
+  auto err = FileManager::instance().rereadConfig();
+  // if there is any error, report it back.
+  if (err.size() > 0) {
+    resp.errata() = std::move(err);
+  }
+
+  // If any callback was register(TSMgmtUpdateRegister) for config notifications, then it will be eventually notify.
+  FileManager::instance().invokeConfigPluginCallbacks();
+
+  // save config time.
+  RecSetRecordInt("proxy.node.config.reconfigure_time", time(nullptr), REC_SOURCE_DEFAULT);
+  // TODO: we may not need this any more
+  RecSetRecordInt("proxy.node.config.reconfigure_required", 0, REC_SOURCE_DEFAULT);
 
   return resp;
 }
