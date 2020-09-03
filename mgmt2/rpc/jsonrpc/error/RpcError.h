@@ -33,14 +33,17 @@ namespace error
 {
   enum class RpcErrorCode {
     // for std::error_code to work, we shouldn't define 0.
+
+    // JSONRPC 2.0 protocol defined errors.
     INVALID_REQUEST  = -32600,
     METHOD_NOT_FOUND = -32601,
     INVALID_PARAMS   = -32602,
     INTERNAL_ERROR   = -32603,
     PARSE_ERROR      = -32700,
 
-    // NoError = 0,
-    // versionFts::b
+    // Custom errors.
+
+    // version
     InvalidVersion     = 1,
     InvalidVersionType = 2,
     MissingVersion,
@@ -64,14 +67,6 @@ namespace error
   std::error_code make_error_code(rpc::jsonrpc::error::RpcErrorCode e);
 } // namespace error
 
-class RpcErrorException : public std::exception
-{
-  int _code;
-  std::string _message;
-
-public:
-  RpcErrorException(std::error_code ec) : _code(ec.value()), _message(ec.message()) {}
-};
 } // namespace rpc::jsonrpc
 
 namespace std

@@ -17,12 +17,9 @@
 */
 #include "Configuration.h"
 
-#include <system_error> // TODO: remove
+#include <system_error>
 #include <string>
 #include <string_view>
-
-#include "ConfigErrors.h"
-#include "ConfigUtils.h"
 
 #include "tscore/BufferWriter.h"
 #include "records/I_RecCore.h"
@@ -63,13 +60,15 @@ template <> struct convert<config::NameValuePair> {
     return false;
   }
 };
-
 } // namespace YAML
 
 namespace rpc::handlers::config
 {
 static unsigned configRecType  = RECT_CONFIG | RECT_LOCAL;
 static constexpr auto ERROR_ID = rpc::handlers::errors::ID::Configuration;
+
+namespace err   = rpc::handlers::errors;
+namespace utils = rpc::handlers::records::utils;
 
 ts::Rv<YAML::Node>
 get_config_records(std::string_view const &id, YAML::Node const &params)
@@ -81,7 +80,7 @@ get_config_records(std::string_view const &id, YAML::Node const &params)
   auto check = [](RecT rec_type, std::error_code &ec) {
     if (!REC_TYPE_IS_CONFIG(rec_type)) {
       // we have an issue
-      ec = rpc::handlers::errors::RecordError::RECORD_NOT_CONFIG;
+      ec = err::RecordError::RECORD_NOT_CONFIG;
       return false;
     }
     return true;
@@ -151,6 +150,45 @@ get_all_config_records(std::string_view const &id, [[maybe_unused]] YAML::Node c
   return resp;
 }
 
+namespace
+{
+  template <typename T>
+  bool
+  set_data_type(std::string const &name, std::string const &value)
+  {
+    if constexpr (std::is_same_v<T, float>) {
+      T val;
+      try {
+        val = std::stof(value.data());
+      } catch (std::exception const &ex) {
+        return false;
+      }
+      // set the value
+      if (RecSetRecordFloat(name.c_str(), val, REC_SOURCE_DEFAULT) != REC_ERR_OKAY) {
+        return false;
+      }
+    } else if constexpr (std::is_same_v<T, int>) {
+      T val;
+      try {
+        val = std::stoi(value.data());
+      } catch (std::exception const &ex) {
+        return false;
+      }
+      // set the value
+      if (RecSetRecordInt(name.c_str(), val, REC_SOURCE_DEFAULT) != REC_ERR_OKAY) {
+        return false;
+      }
+    } else if constexpr (std::is_same_v<T, std::string>) {
+      if (RecSetRecordString(name.c_str(), const_cast<char *>(value.c_str()), REC_SOURCE_DEFAULT) != REC_ERR_OKAY) {
+        return false;
+      }
+    }
+
+    // all set.
+    return true;
+  }
+} // namespace
+
 ts::Rv<YAML::Node>
 set_config_records(std::string_view const &id, YAML::Node const &params)
 {
@@ -158,19 +196,27 @@ set_config_records(std::string_view const &id, YAML::Node const &params)
   std::error_code ec;
 
   // we need the type and the udpate type for now.
-  using Context = std::tuple<RecDataT, RecUpdateT, RecCheckT, const char *>;
+  using LookupContext = std::tuple<RecDataT, RecUpdateT, RecCheckT, const char *>;
 
   for (auto const &kv : params) {
-    auto const &[name, value] = kv.as<NameValuePair>();
+    std::string name, value;
+    try {
+      auto nvPair = kv.as<NameValuePair>();
+      name        = nvPair.first;
+      value       = nvPair.second;
+    } catch (YAML::Exception const &ex) {
+      ec = err::RecordError::GENERAL_ERROR;
+      break;
+    }
 
-    Context recordCtx;
+    LookupContext recordCtx;
 
     // Get record info first. We will respond with the update status, so we
     // save it.
     const auto ret = RecLookupRecord(
       name.c_str(),
       [](const RecRecord *record, void *data) {
-        auto &[dataType, updateType, checkType, pattern] = *static_cast<Context *>(data);
+        auto &[dataType, updateType, checkType, pattern] = *static_cast<LookupContext *>(data);
         if (REC_TYPE_IS_CONFIG(record->rec_type)) {
           dataType   = record->data_type;
           updateType = record->config_meta.update_type;
@@ -184,57 +230,38 @@ set_config_records(std::string_view const &id, YAML::Node const &params)
 
     // make sure if exist. If not, we stop it and do not keep forward.
     if (ret != REC_ERR_OKAY) {
-      ec = RPCConfigHandlingError::RecordNotFound;
+      ec = err::RecordError::RECORD_NOT_FOUND;
       break;
     }
 
     // now set the value.
     auto const &[dataType, updateType, checkType, pattern] = recordCtx;
-    bool checkOk{true};
 
     // run the check only if we have something to check against it.
-    if (pattern != nullptr) {
-      checkOk = utils::recordValidityCheck(value, checkType, pattern);
-    }
-
-    if (checkOk) {
-      switch (dataType) {
-      case RECD_INT: {
-        const auto val = utils::from_string<int>(value, ec);
-
-        if (!ec && RecSetRecordInt(name.c_str(), val, REC_SOURCE_DEFAULT) != REC_ERR_OKAY) {
-          ec = RPCConfigHandlingError::SetError;
-        }
-      } break;
-      case RECD_FLOAT: {
-        const auto val = utils::from_string<float>(value, ec);
-
-        if (!ec && RecSetRecordFloat(name.c_str(), val, REC_SOURCE_DEFAULT) != REC_ERR_OKAY) {
-          ec = RPCConfigHandlingError::SetError;
-        }
-      } break;
-      case RECD_STRING: {
-        if (RecSetRecordString(name.c_str(), const_cast<char *>(value.c_str()), REC_SOURCE_DEFAULT) != REC_ERR_OKAY) {
-          ec = RPCConfigHandlingError::SetError;
-        }
-      } break;
-      case RECD_COUNTER: {
-        const auto val = utils::from_string<int64_t>(value, ec);
-
-        if (!ec && RecSetRecordInt(name.c_str(), val, REC_SOURCE_DEFAULT) != REC_ERR_OKAY) {
-          ec = RPCConfigHandlingError::SetError;
-        }
-      } break;
-      default:;
-      }
-    } else {
-      ec = RPCConfigHandlingError::ValidityCheckFailed;
-    }
-
-    // for-loop level check. If any issue during the set's then we will not move
-    // forward, so stop it right now.
-    if (ec) {
+    if (pattern != nullptr && utils::recordValidityCheck(value, checkType, pattern) == false) {
+      ec = err::RecordError::VALIDITY_CHECK_ERROR;
       break;
+    }
+
+    bool set_ok{false};
+    switch (dataType) {
+    case RECD_INT:
+    case RECD_COUNTER:
+      set_ok = set_data_type<int>(name, value);
+      break;
+    case RECD_FLOAT:
+      set_ok = set_data_type<float>(name, value);
+      break;
+    case RECD_STRING:
+      set_ok = set_data_type<std::string>(name, value);
+      break;
+    default:
+      // null?
+      ;
+    }
+
+    if (!set_ok) {
+      ec = err::RecordError::GENERAL_ERROR;
     }
 
     // Set the response.
