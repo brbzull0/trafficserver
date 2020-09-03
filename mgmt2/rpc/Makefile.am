@@ -133,9 +133,6 @@ AM_CPPFLAGS += \
 librpcpublichandlers_COMMON = \
 	handlers/config/Configuration.cc \
 	handlers/config/Configuration.h \
-	handlers/config/ConfigUtils.cc \
-	handlers/config/ConfigUtils.h \
-	handlers/config/ConfigErrors.cc \
 	handlers/records/Records.cc \
 	handlers/records/Records.h \
 	handlers/metrics/Metrics.cc \
