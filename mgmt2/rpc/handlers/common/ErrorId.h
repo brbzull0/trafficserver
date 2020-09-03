@@ -25,6 +25,8 @@
 
 namespace rpc::handlers::errors
 {
+// This enum defines the group errors to be used on the ts::Errata. This is just for general reference as
+// it has no meaning for us.
 enum class ID : int { Configuration = 1, Metrics, Records, Server, Storage, Generic };
 
 template <typename EnumType>
@@ -33,6 +35,8 @@ to_integral(EnumType e) -> typename std::underlying_type<EnumType>::type
 {
   return static_cast<typename std::underlying_type<EnumType>::type>(e);
 }
+
+// Handy helper function to push the std::error_code into an errata.
 static inline void
 push_error(ID id, std::error_code const &ec, ts::Errata &errata)
 {

@@ -22,8 +22,6 @@
 
 #include <tuple>
 
-#include "rpc/handlers/config/ConfigErrors.h"
-#include "rpc/handlers/config/ConfigUtils.h"
 #include "rpc/handlers/common/convert.h"
 
 #include "records/I_RecCore.h"
@@ -58,9 +56,11 @@ template <> struct is_error_code_enum<rpc::handlers::errors::RecordError> : true
 namespace rpc::handlers::records::utils
 {
 using ValidateRecType = std::function<bool(RecT, std::error_code &)>;
+
 std::tuple<YAML::Node, std::error_code> get_yaml_record(std::string_view name, ValidateRecType check);
 std::tuple<YAML::Node, std::error_code> get_config_yaml_record(std::string_view name);
-
 std::tuple<YAML::Node, std::error_code> get_yaml_record_regex(std::string_view name, unsigned recType);
 
+// Basic functions to helps setting a configuration record value properly. All this functions were originally in the WebMgmtUtils.
+bool recordValidityCheck(std::string_view value, RecCheckT checkType, std::string_view pattern);
 } // namespace rpc::handlers::records::utils
