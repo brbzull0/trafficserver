@@ -40,6 +40,13 @@ struct RpcError {
   std::string message;
 };
 
+class RpcHandlerResponse
+{
+public:
+  YAML::Node result;
+  ts::Errata errata;
+};
+
 struct RpcResponseInfo {
   RpcResponseInfo(std::optional<std::string> const &id_) : id(id_) {}
   RpcResponseInfo() = default;

@@ -19,22 +19,14 @@
 */
 #pragma once
 
-#include <optional>
 #include <functional>
-#include <variant>
+#include <string_view>
 #include <yaml-cpp/yaml.h>
 
 #include "tscore/Errata.h"
 
 namespace rpc::jsonrpc
 {
-class RpcHandlerResponse
-{
-public:
-  YAML::Node result;
-  ts::Errata errata;
-};
-
 using NotificationHandler = std::function<void(const YAML::Node &)>;
 using MethodHandler       = std::function<ts::Rv<YAML::Node>(std::string_view const &, const YAML::Node &)>;
 } // namespace rpc::jsonrpc
