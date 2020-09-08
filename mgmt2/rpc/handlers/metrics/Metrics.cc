@@ -117,6 +117,8 @@ clear_metrics(std::string_view const &id, YAML::Node const &params)
     auto const &name = element.as<std::string>();
     if (!name.empty()) {
       if (RecResetStatRecord(name.data()) != REC_ERR_OKAY) {
+        // This could be due the fact that the record is already cleared or the metric does not have any significant
+        // value.
         push_error(ERROR_ID, {rpc::handlers::errors::RecordError::RECORD_WRITE_ERROR}, resp.errata());
       }
     }
