@@ -141,6 +141,8 @@ librpcpublichandlers_COMMON = \
 	handlers/storage/Storage.cc \
 	handlers/server/Server.h \
 	handlers/server/Server.cc \
+	handlers/plugins/Plugins.h \
+	handlers/plugins/Plugins.cc \
 	handlers/common/RecordsUtils.cc \
 	handlers/common/RecordsUtils.h \
 	handlers/Admin.h \
