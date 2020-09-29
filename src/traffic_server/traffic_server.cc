@@ -103,10 +103,11 @@ extern "C" int plock(int);
 #include "tscore/ink_config.h"
 #include "P_SSLSNI.h"
 #include "P_SSLClientUtils.h"
-// JSON RPC protocol and server only includes.
 
-#include "RPCPubHandlers.h"
+// Mgmt Admin public handlers
+#include "RpcAdminPubHandlers.h"
 
+// Json Rpc stuffs
 #include "rpc/jsonrpc/JsonRpc.h"
 #include "rpc/server/RpcServer.h"
 
