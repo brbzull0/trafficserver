@@ -256,7 +256,11 @@ struct AutoStopCont : public Continuation {
     }
 
     pmgmt->stop();
-    jsonrpcServer->stop();
+
+    // if the jsonrpc feature was disabled, the object will not be created.
+    if (jsonrpcServer) {
+      jsonrpcServer->stop();
+    }
 
     TSSystemState::shut_down_event_system();
     delete this;
@@ -721,15 +725,27 @@ initialize_file_manager()
 static void
 initialize_jsonrpc_server()
 {
-  // For now, server will be initialized with default values
+  auto filePath = RecConfigReadConfigPath("proxy.config.jsonrpc.filename", ts::filename::JSONRPC);
+
   auto serverConfig = rpc::config::RPCConfig{};
+  serverConfig.load_from_file(filePath);
+
+  if (!serverConfig.is_enabled()) {
+    Note("JSONRPC Disabled by configuration.");
+    return;
+  }
 
   // Register admin handlers.
   rpc::admin::register_admin_jsonrpc_handlers();
-
+  Note("JSONRPC Enabled. Public admin handlers regsitered.");
   // create and start the server.
-  jsonrpcServer = new rpc::RpcServer{serverConfig};
-  jsonrpcServer->thread_start();
+  try {
+    jsonrpcServer = new rpc::RpcServer{serverConfig};
+    jsonrpcServer->thread_start();
+    Note("JSONRPC Enabled. RPC Server started, transport set to %s", jsonrpcServer->selected_transport_name().data());
+  } catch (std::exception const &ex) {
+    Warning("Something happened while starting the JSONRPC Server: %s", ex.what());
+  }
 }
 
 #define CMD_ERROR -2      // serious error, exit maintenance mode
