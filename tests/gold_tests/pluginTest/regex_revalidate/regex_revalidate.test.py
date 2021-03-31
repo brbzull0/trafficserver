@@ -42,7 +42,7 @@ Test.ContinueOnFail = False
 server = Test.MakeOriginServer("server")
 
 # Define ATS and configure
-ts = Test.MakeATSProcess("ts", command="traffic_manager", select_ports=True)
+ts = Test.MakeATSProcess("ts", command="traffic_server", select_ports=True, dump_runroot=True)
 
 # default root
 request_header_0 = {"headers":
@@ -187,7 +187,7 @@ tr.Disk.File(regex_revalidate_conf_path, typename="ats:config").AddLines([
 ])
 tr.StillRunningAfter = ts
 tr.StillRunningAfter = server
-tr.Processes.Default.Command = 'traffic_ctl config reload'
+tr.Processes.Default.Command = f'traffic_ctl  config reload --run-root {ts.Disk.runroot_yaml.Name}'
 # Need to copy over the environment so traffic_ctl knows where to find the unix domain socket
 tr.Processes.Default.Env = ts.Env
 tr.Processes.Default.ReturnCode = 0
@@ -217,7 +217,7 @@ tr.Disk.File(regex_revalidate_conf_path, typename="ats:config").AddLines([
 ])
 tr.StillRunningAfter = ts
 tr.StillRunningAfter = server
-tr.Processes.Default.Command = 'traffic_ctl config reload'
+tr.Processes.Default.Command = f'traffic_ctl config reload --run-root {ts.Disk.runroot_yaml.Name}'
 # Need to copy over the environment so traffic_ctl knows where to find the unix domain socket
 tr.Processes.Default.Env = ts.Env
 tr.Processes.Default.ReturnCode = 0
@@ -250,7 +250,7 @@ tr.Disk.File(regex_revalidate_conf_path, typename="ats:config").AddLines([
 ])
 tr.StillRunningAfter = ts
 tr.StillRunningAfter = server
-tr.Processes.Default.Command = 'traffic_ctl config reload'
+tr.Processes.Default.Command = f'traffic_ctl config reload --run-root {ts.Disk.runroot_yaml.Name}'
 # Need to copy over the environment so traffic_ctl knows where to find the unix domain socket
 tr.Processes.Default.Env = ts.Env
 tr.Processes.Default.ReturnCode = 0
