@@ -70,6 +70,7 @@ IPCSocketServer::init()
   // Need to run some validations on the pathname to avoid issue. Normally this would not be an issue, but some tests may fail on
   // this.
   if (_conf.sockPathName.empty() || _conf.sockPathName.size() > sizeof _serverAddr.sun_path) {
+    Debug(logTag, "Invalid unix path name, check the size.");
     return std::make_error_code(static_cast<std::errc>(EINVAL));
   }
 
@@ -79,9 +80,9 @@ IPCSocketServer::init()
   if (ec) {
     return ec;
   }
-  Debug("rpc", "Using %s as socket path.", _conf.sockPathName.c_str());
+  Debug(logTag, "Using %s as socket path.", _conf.sockPathName.c_str());
   _serverAddr.sun_family = AF_UNIX;
-  std::strncpy(_serverAddr.sun_path, _conf.sockPathName.c_str(), _conf.sockPathName.size());
+  std::strncpy(_serverAddr.sun_path, _conf.sockPathName.c_str(), sizeof(_serverAddr.sun_path) - 1);
 
   if (this->bind(ec); ec) {
     this->close();
