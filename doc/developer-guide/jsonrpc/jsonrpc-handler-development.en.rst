@@ -21,8 +21,8 @@
 
 .. _jsonrpc_development:
 
-JSONRPC handler implementation
-******************************
+Handler implementation
+**********************
 
 Use this section as a guide for developing new rpc methods inside |TS| and how to expose them through the |RPC| endpoint.
 Before we start, it is worth mentioning some of the architecture of the current implementation. The whole RPC mechanism is divided in

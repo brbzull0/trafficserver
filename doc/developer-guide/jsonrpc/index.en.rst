@@ -24,6 +24,8 @@ JSONRPC
 
 .. toctree::
    jsonrpc-architecture.en
+   jsonrpc-api.en
+   jsonrpc-node.en
    jsonrpc-handler-development.en
    traffic_ctl-development.en
    HandlerError.en
