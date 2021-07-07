@@ -332,7 +332,7 @@ endpoint.
 
    Supports :option:`--reason`.
 
-.. _traffic_ctl rpc:
+.. _traffic_ctl_rpc:
 
 traffic_ctl rpc
 ---------------

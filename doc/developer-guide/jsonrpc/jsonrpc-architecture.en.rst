@@ -36,23 +36,23 @@
 .. |arrayrecord| replace:: ``array[record]``
 .. |arrayerror| replace:: ``array[errors]``
 
-JSONRPC
-*******
 
-RPC Architecture
-================
+Architecture
+************
 
 
 Protocol
-^^^^^^^^
+========
 
 The RPC mechanism implements the  `JSONRPC`_ protocol. You can refer to this section `jsonrpc-protocol`_ for more information.
 
 Server
-^^^^^^
+======
+
+.. _jsonrpc-architecture-ipc:
 
 IPC
-"""
+---
 
 The current server implementation runs on an IPC Socket(Unix Domain Socket). This server implements an iterative server style.
 The implementation runs on a dedicated ``TSThread`` and as their style express, this performs blocking calls to all the registered handlers.
@@ -60,7 +60,7 @@ Configuration for this particular server style can be found in the admin section
 
 
 Using the JSONRPC mechanism
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+===========================
 
 As a user, currently,  :program:`traffic_ctl` exercises this new protocol, please refer to the :ref:`traffic_ctl_jsonrpc` section.
 
@@ -69,7 +69,7 @@ As a developer, please refer to the :ref:`jsonrpc_development` for a more detail
 
 
 JSON Parsing
-^^^^^^^^^^^^
+============
 
 Our JSONRPC  protocol implementation uses lib yamlcpp for parsing incoming and outgoing requests,
 this allows the server to accept either JSON or YAML format messages which then will be parsed by the protocol implementation. This seems handy
@@ -115,7 +115,7 @@ you also can find this information in the `JSONRPC`_ link.
 .. _jsonrpc-request:
 
 Requests
-^^^^^^^^
+--------
 
 Please find the `jsonrpc 2.0 request` schema for reference ( `mgmt2/rpc/schema/jsonrpc_request_schema.json` ).
 
@@ -197,10 +197,16 @@ Please find the `jsonrpc 2.0 request` schema for reference ( `mgmt2/rpc/schema/j
       *Although a |number| can  be specified here we will convert this internally to a |str|. The response will be a |str|.*
 
 
+.. note::
+
+   The |RPC| protocol supports batch requests so, multiple independent requests can be send to the server in a single json message. Batch
+   request are basically an array of the above request, simply enclose them as an array ``[ .. ]``. The response for batch requests will be also
+   in a form of an array.
+
 .. _jsonrpc-response:
 
 Responses
-^^^^^^^^^
+---------
 
 Although each individual API call will describe the response details and some specific errors, in this section we will describe a high
 level protocol response, some defined by the `JSONRPC`_ specs and some by |TS|
@@ -256,7 +262,7 @@ the method name, which |TS| sends a clear response error back.
 .. _jsonrpc-result:
 
 Result
-""""""
+------
 
 
 * This member is required and will be present on success.
@@ -286,7 +292,7 @@ Example:
 .. _jsonrpc-error:
 
 Errors
-""""""
+------
 
 The specs define the error fields that the client must expect to be sent back from the Server in case of any error.
 
