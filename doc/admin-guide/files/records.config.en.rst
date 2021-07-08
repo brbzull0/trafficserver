@@ -213,13 +213,25 @@ System Variables
 
 .. ts:cv:: CONFIG proxy.config.output.logfile  STRING traffic.out
 
-   The name and location of the file that contains warnings, status messages, and error messages produced by the |TS|
-   processes. If no path is specified, then |TS| creates the file in its logging directory.
+   This is used for log rolling configuration so |TS| knows the path of the
+   output file that should be rolled. This configuration takes the name of the
+   file receiving :program:`traffic_server` and :program:`traffic_manager`
+   process output that is set via the ``--bind_stdout`` and ``--bind_stderr``
+   :ref:`command-line options <traffic_server>`.
+   :ts:cv:`proxy.config.output.logfile` is used only to identify the name of
+   the output file for log rolling purposes and does not override the values
+   set via ``--bind_stdout`` and ``--bind_stderr``.
 
+   If a filename is passed to this option, then it will be interpreted relative
+   to :ts:cv:`proxy.config.log.logfile_dir`. If a different location is desired,
+   then pass an absolute path to this configuration.
 
 .. ts:cv:: CONFIG proxy.config.output.logfile_perm STRING rw-r--r--
 
-   The log file permissions. The standard UNIX file permissions are used (owner, group, other). Permissible values are:
+   The log file permissions for the file receiving |TS| output, the path of
+   which is configured via the ``--bind_stdout`` and ``--bind_stderr``
+   :ref:`command-line options <traffic_server>`.  The standard UNIX file
+   permissions are used (owner, group, other). Permissible values are:
 
    ===== ======================================================================
    Value Description
@@ -530,6 +542,14 @@ Network
 
 Local Manager
 =============
+
+.. ts:cv:: CONFIG proxy.node.config.manager_log_filename STRING manager.log
+
+   The name of the file to which :program:`traffic_manager` logs will be emitted.
+
+   If this is set to ``stdout`` or ``stderr``, then all :program:`traffic_manager`
+   logging will go to the stdout or stderr stream, respectively.
+
 
 .. ts:cv:: CONFIG proxy.config.admin.user_id STRING nobody
 
@@ -959,7 +979,7 @@ mptcp
                  of the origin server matches.
    ``host``      Re-use server sessions, checking that the fully qualified
                  domain name matches. In addition, if the session uses TLS, it also
-                 checks that the current transaction's host header value matchs the session's SNI.
+                 checks that the current transaction's host header value matches the session's SNI.
    ``both``      Equivalent to ``host,ip``.
    ``hostonly``  Check that the fully qualified domain name matches.
    ``sni``       Check that the SNI of the session matches the SNI that would be used to
@@ -1496,8 +1516,8 @@ Origin Server Connect Attempts
 
    The maximum number of connection retries |TS| can make when the origin server is not responding.
    Each retry attempt lasts for `proxy.config.http.connect_attempts_timeout`_ seconds.  Once the maximum number of retries is
-   reached, the origin is marked dead.  After this, the setting  `proxy.config.http.connect_attempts_max_retries_dead_server`_
-   is used to limit the number of retry attempts to the known dead origin.
+   reached, the origin is marked dead (as controlled by `proxy.config.http.connect.dead.policy`_.  After this, the setting
+   `proxy.config.http.connect_attempts_max_retries_dead_server`_ is used to limit the number of retry attempts to the known dead origin.
 
 .. ts:cv:: CONFIG proxy.config.http.connect_attempts_max_retries_dead_server INT 1
    :reloadable:
@@ -1506,6 +1526,13 @@ Origin Server Connect Attempts
    Maximum number of connection attempts |TS| can make while an origin is marked dead per request.  Typically this value is smaller than
    `proxy.config.http.connect_attempts_max_retries`_ so an error is returned to the client faster and also to reduce the load on the dead origin.
    The timeout interval `proxy.config.http.connect_attempts_timeout`_ in seconds is used with this setting.
+
+.. ts:cv:: CONFIG proxy.config.http.connect.dead.policy INT 2
+   :overridable:
+
+   Controls what origin server connection failures contribute to marking a server dead. When set to 2, any connection failure during the TCP and TLS
+   handshakes will contribute to marking the server dead. When set to 1, only TCP handshake failures will contribute to marking a server dead.
+   When set to 0, no connection failures will be used towards marking a server dead.
 
 .. ts:cv:: CONFIG proxy.config.http.server_max_connections INT 0
    :reloadable:
@@ -3145,6 +3172,8 @@ Logging Configuration
 Diagnostic Logging Configuration
 ================================
 
+.. _DiagnosticOutputConfigurationVariables:
+
 .. ts:cv:: CONFIG proxy.config.diags.output.diag STRING E
 .. ts:cv:: CONFIG proxy.config.diags.output.debug STRING E
 .. ts:cv:: CONFIG proxy.config.diags.output.status STRING L
@@ -3166,7 +3195,8 @@ Diagnostic Logging Configuration
    ``O`` Log to standard output.
    ``E`` Log to standard error.
    ``S`` Log to syslog.
-   ``L`` Log to :file:`diags.log`.
+   ``L`` Log to :file:`diags.log` (with the filename configurable via
+         :ts:cv:`proxy.config.diags.logfile.filename`).
    ===== ======================================================================
 
 .. topic:: Example
@@ -3223,6 +3253,25 @@ Diagnostic Logging Configuration
    For details about how log throttling works, see
    :ts:cv:`log.throttling_interval_msec
    <proxy.config.log.proxy.config.log.throttling_interval_msec>`.
+
+.. ts:cv:: CONFIG proxy.config.diags.logfile.filename STRING diags.log
+
+   The name of the file to which |TS| diagnostic logs will be emitted. For
+   information on the diagnostic log file, see :file:`diags.log`. For the
+   configurable parameters concerning what log content is emitted to
+   :file:`diags.log`, see the :ref:`Diagnostic Output Configuration Variables
+   <DiagnosticOutputConfigurationVariables>` above.
+
+   If this is set to ``stdout`` or ``stderr``, then all diagnostic logging will
+   go to the stdout or stderr stream, respectively.
+
+.. ts:cv:: CONFIG proxy.config.error.logfile.filename STRING error.log
+
+   The name of the file to which |TS| transaction error logs will be emitted.
+   For more information on these log messages, see :file:`error.log`.
+
+   If this is set to ``stdout`` or ``stderr``, then all transaction error
+   logging will go to the stdout or stderr stream, respectively.
 
 .. ts:cv:: CONFIG proxy.config.diags.logfile_perm STRING rw-r--r--
 
@@ -4392,13 +4441,13 @@ Sockets
 .. ts:cv:: CONFIG  proxy.config.net.tcp_congestion_control_in STRING ""
 
    This directive will override the congestion control algorithm for incoming
-   connections (accept sockets). On linux the allowed values are typically
+   connections (accept sockets). On Linux, the allowed values are typically
    specified in a space separated list in /proc/sys/net/ipv4/tcp_allowed_congestion_control
 
 .. ts:cv:: CONFIG  proxy.config.net.tcp_congestion_control_out STRING ""
 
    This directive will override the congestion control algorithm for outgoing
-   connections (connect sockets). On linux the allowed values are typically
+   connections (connect sockets). On Linux, the allowed values are typically
    specified in a space separated list in /proc/sys/net/ipv4/tcp_allowed_congestion_control
 
 .. ts:cv:: CONFIG proxy.config.net.sock_send_buffer_size_in INT 0
@@ -4554,7 +4603,7 @@ Sockets
 
    Enable (1) the use of huge pages on supported platforms. (Currently only Linux)
 
-   You must also enable hugepages at the OS level. In a modern linux Kernel
+   You must also enable hugepages at the OS level. In modern Linux kernels,
    this can be done by setting ``/proc/sys/vm/nr_overcommit_hugepages`` to a
    sufficiently large value. It is reasonable to use (system
    memory/hugepage size) because these pages are only created on demand.
@@ -4586,8 +4635,8 @@ Sockets
 .. ts:cv:: CONFIG proxy.config.allocator.dontdump_iobuffers INT 1
 
    Enable (1) the exclusion of IO buffers from core files when ATS crashes on supported
-   platforms.  (Currently only linux).  IO buffers are allocated with the MADV_DONTDUMP
-   with madvise() on linux platforms that support MADV_DONTDUMP.  Enabled by default.
+   platforms.  (Currently only Linux).  IO buffers are allocated with the MADV_DONTDUMP
+   with madvise() on Linux platforms that support MADV_DONTDUMP.  Enabled by default.
 
 .. ts:cv:: CONFIG proxy.config.ssl.misc.io.max_buffer_index INT 8
 

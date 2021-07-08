@@ -187,6 +187,26 @@ more widely. Those are described on this page.
 
       Flag for using the remapped URL as an explicit redirection. This can be set by the remap plugin.
 
+.. type:: TSSecretID
+
+   Contains the data for a TLS certificate and key.
+
+   .. member:: const char * cert_name;
+
+      The TLS certificate name.
+
+   .. member:: size_t cert_name_len;
+
+      The length of the TLS certificate name.
+
+   .. member:: const char * key_name;
+
+      The name of the TLS key.
+
+   .. member:: size_t key_name_len;
+
+      The length of the name of the TLS key.
+
 .. type:: TSSslX509
 
     This type represents the :code:`X509` object created from an SSL certificate.
@@ -221,11 +241,11 @@ more widely. Those are described on this page.
 
    An enum for the supported types of user arguments.
 
-.. type:: TSUuidVersion
+.. enum:: TSUuidVersion
 
    A version value for at :type:`TSUuid`.
 
-   .. member:: TS_UUID_V4
+   .. enumerator:: TS_UUID_V4
 
       A version 4 UUID. Currently only this value is used.
 
@@ -311,5 +331,5 @@ more widely. Those are described on this page.
    .. member:: int32_t stream_dependency
 
       The stream dependency. Per spec, see RFC 7540 section 6.2, this is 31
-      bits. We use a signed 32 bit stucture to store either a valid dependency
+      bits. We use a signed 32 bit structure to store either a valid dependency
       or -1 if the stream has no dependency.

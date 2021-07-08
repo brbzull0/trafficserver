@@ -87,7 +87,15 @@ HttpTransactHeaders::is_this_method_supported(int the_scheme, int the_method)
 bool
 HttpTransactHeaders::is_method_safe(int method)
 {
+  // See RFC 7231, section 4.2.1.
   return (method == HTTP_WKSIDX_GET || method == HTTP_WKSIDX_OPTIONS || method == HTTP_WKSIDX_HEAD || method == HTTP_WKSIDX_TRACE);
+}
+
+bool
+HttpTransactHeaders::is_status_an_error_response(HTTPStatus response_code)
+{
+  auto const comparable_response_code = static_cast<unsigned int>(response_code);
+  return (comparable_response_code >= 400) && (comparable_response_code <= 599);
 }
 
 bool
@@ -842,7 +850,7 @@ HttpTransactHeaders::insert_via_header_in_response(HttpTransact::State *s, HTTPH
   // TODO H2 expand for HTTP/2 outbound
   proto_buf[n_proto++] = header->version_get().get_minor() == 0 ? IP_PROTO_TAG_HTTP_1_0 : IP_PROTO_TAG_HTTP_1_1;
 
-  auto ss = s->state_machine->get_server_session();
+  auto ss = s->state_machine->get_server_txn();
   if (ss) {
     n_proto += ss->populate_protocol(proto_buf.data() + n_proto, proto_buf.size() - n_proto);
   }

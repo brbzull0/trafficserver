@@ -540,13 +540,24 @@ AM_CONDITIONAL([BUILD_IMAGE_MAGICK_PLUGINS], [test "x${enable_image_magick_plugi
 
 AC_MSG_CHECKING([whether to install example plugins])
 AC_ARG_ENABLE([example-plugins],
-  [AS_HELP_STRING([--enable-example-plugins],[build and install example plugins])],
+  [AS_HELP_STRING([--enable-example-plugins],[Build and install example plugins])],
   [],
   [enable_example_plugins=no]
 )
 AC_MSG_RESULT([$enable_example_plugins])
 AM_CONDITIONAL([BUILD_EXAMPLE_PLUGINS], [ test "x${enable_example_plugins}" = "xyes" ])
 
+#
+# JSONRPC 2.0  build options.
+#
+AC_MSG_CHECKING([whether to build & install non jsonrpc traffic_ctl])
+AC_ARG_ENABLE([legacy-traffic_ctl],
+  [AS_HELP_STRING([--enable-legacy-traffic_ctl],[build and install legacy traffic_ctl. No jsonrpc will be supported through traffic_ctl])],
+  [],
+  [enable_legacy_tc=no]
+)
+AC_MSG_RESULT([$enable_legacy_tc])
+AM_CONDITIONAL([BUILD_LEGACY_TC], [ test "x${enable_legacy_tc}" = "xyes" ])
 
 #
 # Test tools. The test tools are always built, but not always installed. Installing
@@ -837,7 +848,7 @@ case $host_os_def in
       #  #279 is "controlling expression is constant" (which is e.g. TSReleaseAssert(!"Unexpected Event");
       common_opt="-pipe -Wall -wd873 -wd279"
       debug_opt="-g $common_opt"
-      release_opt="-g $common_opt $optimization_flags -axsse4.2 -fno-strict-aliasing"
+      release_opt="-g $common_opt $optimizing_flags -axsse4.2 -fno-strict-aliasing"
       cxx_opt="-Wno-invalid-offsetof"
     ])
 
@@ -1302,6 +1313,7 @@ AC_CHECK_FUNCS([ \
   HMAC_CTX_new \
   X509_get0_signature \
   ERR_get_error_all \
+  SHA1 \
 ])
 
 AC_CHECK_FUNC([ASN1_STRING_get0_data], [],
@@ -1409,7 +1421,7 @@ TS_CHECK_BROTLI
 TS_CHECK_LUAJIT
 
 #
-# Enable experimental/uri_singing plugin
+# Enable experimental/uri_signing plugin
 # This is here, instead of above, because it needs to know if PCRE is available.
 #
 
@@ -2259,6 +2271,9 @@ AC_CONFIG_FILES([
   mgmt/api/include/Makefile
   mgmt/utils/Makefile
   plugins/Makefile
+  mgmt2/Makefile
+  mgmt2/rpc/Makefile
+  mgmt2/config/Makefile
   proxy/Makefile
   proxy/hdrs/Makefile
   proxy/http/Makefile

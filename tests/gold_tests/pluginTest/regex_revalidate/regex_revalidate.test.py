@@ -42,7 +42,10 @@ Test.ContinueOnFail = False
 server = Test.MakeOriginServer("server")
 
 # Define ATS and configure
-ts = Test.MakeATSProcess("ts", command="traffic_manager", select_ports=True)
+ts = Test.MakeATSProcess("ts", command="traffic_server", select_ports=True, dump_runroot=True)
+
+Test.testName = "regex_revalidate"
+Test.Setup.Copy("metrics.sh")
 
 # default root
 request_header_0 = {"headers":
@@ -187,7 +190,7 @@ tr.Disk.File(regex_revalidate_conf_path, typename="ats:config").AddLines([
 ])
 tr.StillRunningAfter = ts
 tr.StillRunningAfter = server
-tr.Processes.Default.Command = 'traffic_ctl config reload'
+tr.Processes.Default.Command = f'traffic_ctl  config reload --run-root {ts.Disk.runroot_yaml.Name}'
 # Need to copy over the environment so traffic_ctl knows where to find the unix domain socket
 tr.Processes.Default.Env = ts.Env
 tr.Processes.Default.ReturnCode = 0
@@ -217,7 +220,7 @@ tr.Disk.File(regex_revalidate_conf_path, typename="ats:config").AddLines([
 ])
 tr.StillRunningAfter = ts
 tr.StillRunningAfter = server
-tr.Processes.Default.Command = 'traffic_ctl config reload'
+tr.Processes.Default.Command = f'traffic_ctl config reload --run-root {ts.Disk.runroot_yaml.Name}'
 # Need to copy over the environment so traffic_ctl knows where to find the unix domain socket
 tr.Processes.Default.Env = ts.Env
 tr.Processes.Default.ReturnCode = 0
@@ -250,7 +253,7 @@ tr.Disk.File(regex_revalidate_conf_path, typename="ats:config").AddLines([
 ])
 tr.StillRunningAfter = ts
 tr.StillRunningAfter = server
-tr.Processes.Default.Command = 'traffic_ctl config reload'
+tr.Processes.Default.Command = f'traffic_ctl config reload --run-root {ts.Disk.runroot_yaml.Name}'
 # Need to copy over the environment so traffic_ctl knows where to find the unix domain socket
 tr.Processes.Default.Env = ts.Env
 tr.Processes.Default.ReturnCode = 0
@@ -263,4 +266,12 @@ tr.DelayStart = 5
 tr.Processes.Default.Command = curl_and_args + ' http://127.0.0.1:{}/path2a'.format(ts.Variables.port)
 tr.Processes.Default.ReturnCode = 0
 tr.Processes.Default.Streams.stdout = "gold/regex_reval-stale.gold"
+tr.StillRunningAfter = ts
+
+# 12 Stats check
+tr = Test.AddTestRun("Check stats")
+tr.DelayStart = 5
+tr.Processes.Default.Command = "bash -c ./metrics.sh"
+tr.Processes.Default.Env = ts.Env
+tr.Processes.Default.ReturnCode = 0
 tr.StillRunningAfter = ts

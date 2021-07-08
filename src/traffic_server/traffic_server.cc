@@ -104,6 +104,15 @@ extern "C" int plock(int);
 #include "P_SSLSNI.h"
 #include "P_SSLClientUtils.h"
 
+// Mgmt Admin public handlers
+#include "RpcAdminPubHandlers.h"
+
+// Json Rpc stuffs
+#include "rpc/jsonrpc/JsonRPCManager.h"
+#include "rpc/server/RPCServer.h"
+
+#include "config/FileManager.h"
+
 #if TS_USE_QUIC == 1
 #include "Http3.h"
 #include "Http3Config.h"
@@ -122,7 +131,8 @@ extern "C" int plock(int);
 #define DEFAULT_COMMAND_FLAG 0
 
 #define DEFAULT_REMOTE_MANAGEMENT_FLAG 0
-#define DIAGS_LOG_FILENAME "diags.log"
+#define DEFAULT_DIAGS_LOG_FILENAME "diags.log"
+static char diags_log_filename[PATH_NAME_MAX] = DEFAULT_DIAGS_LOG_FILENAME;
 
 static const long MAX_LOGIN = ink_login_name_max();
 
@@ -247,6 +257,12 @@ struct AutoStopCont : public Continuation {
     }
 
     pmgmt->stop();
+
+    // if the jsonrpc feature was disabled, the object will not be created.
+    if (jsonrpcServer) {
+      jsonrpcServer->stop_thread();
+    }
+
     TSSystemState::shut_down_event_system();
     delete this;
     return EVENT_CONT;
@@ -296,9 +312,9 @@ public:
       diags->set_std_output(StdStream::STDOUT, bind_stdout);
       diags->set_std_output(StdStream::STDERR, bind_stderr);
       if (diags->reseat_diagslog()) {
-        Note("Reseated %s", DIAGS_LOG_FILENAME);
+        Note("Reseated %s", diags_log_filename);
       } else {
-        Note("Could not reseat %s", DIAGS_LOG_FILENAME);
+        Note("Could not reseat %s", diags_log_filename);
       }
       // Reload any of the other moved log files (such as the ones in logging.yaml).
       Log::handle_log_rotation_request();
@@ -407,7 +423,7 @@ public:
     diags->config_roll_diagslog((RollingEnabledValues)diags_log_roll_enable, diags_log_roll_int, diags_log_roll_size);
 
     if (diags->should_roll_diagslog()) {
-      Note("Rolled %s", DIAGS_LOG_FILENAME);
+      Note("Rolled %s", diags_log_filename);
     }
     return EVENT_CONT;
   }
@@ -697,6 +713,42 @@ initialize_process_manager()
                         RECP_NON_PERSISTENT);
   RecRegisterStatString(RECT_PROCESS, "proxy.process.version.server.build_person", appVersionInfo.BldPersonStr,
                         RECP_NON_PERSISTENT);
+}
+
+extern void initializeRegistry();
+
+static void
+initialize_file_manager()
+{
+  initializeRegistry();
+}
+
+std::tuple<bool, std::string>
+initialize_jsonrpc_server()
+{
+  std::tuple<bool, std::string> ok{true, {}};
+  auto filePath = RecConfigReadConfigPath("proxy.config.jsonrpc.filename", ts::filename::JSONRPC);
+
+  auto serverConfig = rpc::config::RPCConfig{};
+  serverConfig.load_from_file(filePath);
+  if (!serverConfig.is_enabled()) {
+    Debug("rpc.init", "JSONRPC Disabled");
+    return ok;
+  }
+
+  // create and start the server.
+  try {
+    jsonrpcServer = new rpc::RPCServer{serverConfig};
+    jsonrpcServer->start_thread(TSThreadInit, TSThreadDestroy);
+  } catch (std::exception const &ex) {
+    std::string msg;
+    return {false, ts::bwprint(msg, "Server failed: '{}'", ex.what())};
+  }
+  // Register admin handlers.
+  rpc::admin::register_admin_jsonrpc_handlers();
+  Debug("rpc.init", "JSONRPC. Public admin handlers registered.");
+
+  return ok;
 }
 
 #define CMD_ERROR -2      // serious error, exit maintenance mode
@@ -1794,7 +1846,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // re-start it again, TS will crash.
   // This is also needed for log rotation - setting up the file can cause privilege
   // related errors and if diagsConfig isn't get up yet that will crash on a NULL pointer.
-  diagsConfig = new DiagsConfig("Server", DIAGS_LOG_FILENAME, error_tags, action_tags, false);
+  diagsConfig = new DiagsConfig("Server", DEFAULT_DIAGS_LOG_FILENAME, error_tags, action_tags, false);
   diags->set_std_output(StdStream::STDOUT, bind_stdout);
   diags->set_std_output(StdStream::STDERR, bind_stderr);
   if (is_debug_tag_set("diags")) {
@@ -1808,6 +1860,9 @@ main(int /* argc ATS_UNUSED */, const char **argv)
 
   // Local process manager
   initialize_process_manager();
+
+  // Initialize file manager for TS.
+  initialize_file_manager();
 
   // Set the core limit for the process
   init_core_size();
@@ -1826,6 +1881,8 @@ main(int /* argc ATS_UNUSED */, const char **argv)
     RecRegisterStatInt(RECT_NODE, "proxy.node.config.restart_required.proxy", 0, RECP_NON_PERSISTENT);
     RecRegisterStatInt(RECT_NODE, "proxy.node.config.restart_required.manager", 0, RECP_NON_PERSISTENT);
     RecRegisterStatInt(RECT_NODE, "proxy.node.config.draining", 0, RECP_NON_PERSISTENT);
+    RecRegisterStatInt(RECT_NODE, "proxy.node.proxy_running", 1, RECP_NON_PERSISTENT);
+    RecSetRecordInt("proxy.node.restarts.proxy.start_time", time(nullptr), REC_SOURCE_DEFAULT);
   }
 
   // init huge pages
@@ -1887,8 +1944,12 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   main_thread->set_specific();
 
   // Re-initialize diagsConfig based on records.config configuration
+  REC_ReadConfigString(diags_log_filename, "proxy.config.diags.logfile.filename", sizeof(diags_log_filename));
+  if (strnlen(diags_log_filename, sizeof(diags_log_filename)) == 0) {
+    strncpy(diags_log_filename, DEFAULT_DIAGS_LOG_FILENAME, sizeof(diags_log_filename));
+  }
   DiagsConfig *old_log = diagsConfig;
-  diagsConfig          = new DiagsConfig("Server", DIAGS_LOG_FILENAME, error_tags, action_tags, true);
+  diagsConfig          = new DiagsConfig("Server", diags_log_filename, error_tags, action_tags, true);
   RecSetDiags(diags);
   diags->set_std_output(StdStream::STDOUT, bind_stdout);
   diags->set_std_output(StdStream::STDERR, bind_stderr);
@@ -1917,6 +1978,11 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   }
 #endif
 
+  // JSONRPC server and handlers
+  if (auto &&[ok, msg] = initialize_jsonrpc_server(); !ok) {
+    Warning("JSONRPC server could not be started.\n  Why?: '%s' ... Continuing without it.", msg.c_str());
+  }
+
   // setup callback for tracking remap included files
   load_remap_file_cb = load_config_file_callback;
 
@@ -1943,7 +2009,13 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   } else if (HttpConfig::m_master.inbound_ip6.isValid()) {
     machine_addr.assign(HttpConfig::m_master.inbound_ip6);
   }
-  Machine::init(nullptr, &machine_addr.sa);
+  char *hostname = REC_ConfigReadString("proxy.config.log.hostname");
+  if (hostname != nullptr && std::string_view(hostname) == "localhost") {
+    // The default value was used. Let Machine::init derive the hostname.
+    hostname = nullptr;
+  }
+  Machine::init(hostname, &machine_addr.sa);
+  ats_free(hostname);
 
   RecRegisterStatString(RECT_PROCESS, "proxy.process.version.server.uuid", (char *)Machine::instance()->uuid.getString(),
                         RECP_NON_PERSISTENT);
@@ -2103,7 +2175,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
     quic_NetProcessor.start(-1, stacksize);
 #endif
     pmgmt->registerPluginCallbacks(global_config_cbs);
-
+    FileManager::instance().registerConfigPluginCallbacks(global_config_cbs);
     cacheProcessor.afterInitCallbackSet(&CB_After_Cache_Init);
     cacheProcessor.start();
 
@@ -2298,12 +2370,15 @@ static void
 load_ssl_file_callback(const char *ssl_file)
 {
   pmgmt->signalConfigFileChild(ts::filename::SSL_MULTICERT, ssl_file);
+  FileManager::instance().configFileChild(ts::filename::SSL_MULTICERT, ssl_file);
 }
 
 void
 load_config_file_callback(const char *parent_file, const char *remap_file)
 {
   pmgmt->signalConfigFileChild(parent_file, remap_file);
+  // TODO: for now in both
+  FileManager::instance().configFileChild(parent_file, remap_file);
 }
 
 static void

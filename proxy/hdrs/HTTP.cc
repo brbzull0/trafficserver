@@ -1056,19 +1056,19 @@ http_parser_parse_req(HTTPParser *parser, HdrHeap *heap, HTTPHdrImpl *hh, const 
     }
     goto parse_url;
   parse_version4:
-    if ((*cur != 'P') && (*cur != 'p')) {
+    if (*cur != 'P') {
       goto parse_url;
     }
     GETPREV(parse_url);
-    if ((*cur != 'T') && (*cur != 't')) {
+    if (*cur != 'T') {
       goto parse_url;
     }
     GETPREV(parse_url);
-    if ((*cur != 'T') && (*cur != 't')) {
+    if (*cur != 'T') {
       goto parse_url;
     }
     GETPREV(parse_url);
-    if ((*cur != 'H') && (*cur != 'h')) {
+    if (*cur != 'H') {
       goto parse_url;
     }
     version_start = cur;
@@ -1098,7 +1098,7 @@ http_parser_parse_req(HTTPParser *parser, HdrHeap *heap, HTTPHdrImpl *hh, const 
     ink_assert(url_start);
     ink_assert(url_end);
 
-    int method_wks_idx = hdrtoken_tokenize(method_start, static_cast<int>(method_end - method_start));
+    int method_wks_idx = hdrtoken_method_tokenize(method_start, static_cast<int>(method_end - method_start));
     http_hdr_method_set(heap, hh, method_start, method_wks_idx, static_cast<int>(method_end - method_start), must_copy_strings);
 
     ink_assert(hh->u.req.m_url_impl != nullptr);
@@ -1200,6 +1200,17 @@ validate_hdr_content_length(HdrHeap *heap, HTTPHdrImpl *hh)
     // status code and then close the connection
     int content_length_len         = 0;
     const char *content_length_val = content_length_field->value_get(&content_length_len);
+
+    // RFC 7230 section 3.3.2
+    // Content-Length = 1*DIGIT
+    //
+    // If the content-length value contains a non-numeric value, the header is invalid
+    for (int i = 0; i < content_length_len; i++) {
+      if (!isdigit(content_length_val[i])) {
+        Debug("http", "Content-Length value contains non-digit, returning parse error");
+        return PARSE_RESULT_ERROR;
+      }
+    }
 
     while (content_length_field->has_dups()) {
       int content_length_len_2         = 0;
@@ -1318,19 +1329,19 @@ http_parser_parse_resp(HTTPParser *parser, HdrHeap *heap, HTTPHdrImpl *hh, const
     reason_end    = nullptr;
 
     version_start = cur = line_start;
-    if ((*cur != 'H') && (*cur != 'h')) {
+    if (*cur != 'H') {
       goto eoh;
     }
     GETNEXT(eoh);
-    if ((*cur != 'T') && (*cur != 't')) {
+    if (*cur != 'T') {
       goto eoh;
     }
     GETNEXT(eoh);
-    if ((*cur != 'T') && (*cur != 't')) {
+    if (*cur != 'T') {
       goto eoh;
     }
     GETNEXT(eoh);
-    if ((*cur != 'P') && (*cur != 'p')) {
+    if (*cur != 'P') {
       goto eoh;
     }
     GETNEXT(eoh);
@@ -1459,8 +1470,7 @@ http_parse_version(const char *start, const char *end)
     return HTTP_0_9;
   }
 
-  if (((start[0] == 'H') || (start[0] == 'h')) && ((start[1] == 'T') || (start[1] == 't')) &&
-      ((start[2] == 'T') || (start[2] == 't')) && ((start[3] == 'P') || (start[3] == 'p')) && (start[4] == '/')) {
+  if ((start[0] == 'H') && (start[1] == 'T') && (start[2] == 'T') && (start[3] == 'P') && (start[4] == '/')) {
     start += 5;
 
     maj = 0;

@@ -849,6 +849,7 @@ HttpTransact::BadRequest(State *s)
   }
 
   build_error_response(s, status, reason, body_factory_template);
+  s->client_info.keep_alive = HTTP_NO_KEEPALIVE;
   TRANSACT_RETURN(SM_ACTION_SEND_ERROR_CACHE_NOOP, nullptr);
 }
 
@@ -908,6 +909,20 @@ HttpTransact::OriginDead(State *s)
   TxnDebug("http_trans", "origin server is marked down");
   bootstrap_state_variables_from_request(s, &s->hdr_info.client_request);
   build_error_response(s, HTTP_STATUS_BAD_GATEWAY, "Origin Server Marked Down", "connect#failed_connect");
+  HTTP_INCREMENT_DYN_STAT(http_dead_server_no_requests);
+  char *url_str = s->hdr_info.client_request.url_string_get(&s->arena);
+  int host_len;
+  const char *host_name_ptr = s->unmapped_url.host_get(&host_len);
+  std::string_view host_name{host_name_ptr, size_t(host_len)};
+  Log::error("%s", lbw()
+                     .clip(1)
+                     .print("CONNECT: dead server no request to {} for host='{}' url='{}'", s->current.server->dst_addr, host_name,
+                            ts::bwf::FirstOf(url_str, "<none>"))
+                     .extend(1)
+                     .write('\0')
+                     .data());
+  s->arena.str_free(url_str);
+
   TRANSACT_RETURN(SM_ACTION_SEND_ERROR_CACHE_NOOP, nullptr);
 }
 
@@ -2070,6 +2085,14 @@ HttpTransact::OSDNSLookup(State *s)
       } else if (s->cache_lookup_result == CACHE_LOOKUP_MISS || s->cache_info.action == CACHE_DO_NO_ACTION) {
         TRANSACT_RETURN(SM_ACTION_API_OS_DNS, HandleCacheOpenReadMiss);
         // DNS lookup is done if the lookup failed and need to call Handle Cache Open Read Miss
+      } else if (s->cache_info.action == CACHE_PREPARE_TO_WRITE && s->http_config_param->cache_post_method == 1 &&
+                 s->method == HTTP_WKSIDX_POST) {
+        // By virtue of being here, we are intending to forward the request on
+        // to the server. If we marked this as CACHE_PREPARE_TO_WRITE and this
+        // is a POST request whose response we intend to write, then we have to
+        // proceed from here by calling the function that handles this as a
+        // miss.
+        TRANSACT_RETURN(SM_ACTION_API_OS_DNS, HandleCacheOpenReadMiss);
       } else {
         build_error_response(s, HTTP_STATUS_INTERNAL_SERVER_ERROR, "Invalid Cache Lookup result", "default");
         Log::error("HTTP: Invalid CACHE LOOKUP RESULT : %d", s->cache_lookup_result);
@@ -3078,7 +3101,8 @@ HttpTransact::build_response_from_cache(State *s, HTTPWarningCode warning_code)
   // fall through
   default:
     SET_VIA_STRING(VIA_DETAIL_CACHE_LOOKUP, VIA_DETAIL_HIT_SERVED);
-    if (s->method == HTTP_WKSIDX_GET || s->api_resp_cacheable == true) {
+    if (s->method == HTTP_WKSIDX_GET || (s->http_config_param->cache_post_method == 1 && s->method == HTTP_WKSIDX_POST) ||
+        s->api_resp_cacheable == true) {
       // send back the full document to the client.
       TxnDebug("http_trans", "[build_response_from_cache] Match! Serving full document.");
       s->cache_info.action = CACHE_DO_SERVE;
@@ -3269,8 +3293,6 @@ HttpTransact::handle_cache_write_lock(State *s)
       ink_assert(s->next_action == SM_ACTION_DNS_LOOKUP);
       return;
     }
-
-    TRANSACT_RETURN(next, nullptr);
   }
 }
 
@@ -3310,7 +3332,7 @@ HttpTransact::HandleCacheOpenReadMiss(State *s)
   if (GET_VIA_STRING(VIA_DETAIL_CACHE_LOOKUP) == ' ') {
     SET_VIA_STRING(VIA_DETAIL_CACHE_LOOKUP, VIA_DETAIL_MISS_NOT_CACHED);
   }
-  // We do a cache lookup for DELETE and PUT requests as well.
+  // We do a cache lookup for some non-GET requests as well.
   // We must, however, not cache the responses to these requests.
   if (does_method_require_cache_copy_deletion(s->http_config_param, s->method) && s->api_req_cacheable == false) {
     s->cache_info.action = CACHE_DO_NO_ACTION;
@@ -3623,6 +3645,12 @@ HttpTransact::handle_response_from_parent(State *s)
     if (s->parent_result.retry) {
       markParentUp(s);
     }
+    // the next hop strategy is configured not
+    // to cache a response from a next hop peer.
+    if (s->parent_result.do_not_cache_response) {
+      TxnDebug("http_trans", "response is from a next hop peer, do not cache.");
+      s->cache_info.action = CACHE_DO_NO_ACTION;
+    }
     handle_forward_server_connection_open(s);
     break;
   case PARENT_RETRY:
@@ -3874,21 +3902,26 @@ void
 HttpTransact::error_log_connection_failure(State *s, ServerState_t conn_state)
 {
   char addrbuf[INET6_ADDRSTRLEN];
-
   TxnDebug("http_trans", "[%d] failed to connect [%d] to %s", s->current.attempts, conn_state,
            ats_ip_ntop(&s->current.server->dst_addr.sa, addrbuf, sizeof(addrbuf)));
 
-  //////////////////////////////////////////
-  // on the first connect attempt failure //
-  // record the failue                   //
-  //////////////////////////////////////////
-  if (0 == s->current.attempts) {
-    char *url_string = s->hdr_info.client_request.url_string_get(&s->arena);
-    Log::error("CONNECT: first attempt could not connect [%s] to %s for '%s' connect_result=%d src_port=%d cause_of_death_errno=%d",
-               HttpDebugNames::get_server_state_name(conn_state),
-               ats_ip_ntop(&s->current.server->dst_addr.sa, addrbuf, sizeof(addrbuf)), url_string ? url_string : "<none>",
-               s->current.server->connect_result, ntohs(s->current.server->src_addr.port()), s->cause_of_death_errno);
-    s->arena.str_free(url_string);
+  if (s->current.server->had_connect_fail()) {
+    char *url_str = s->hdr_info.client_request.url_string_get(&s->arena);
+    int host_len;
+    const char *host_name_ptr = s->unmapped_url.host_get(&host_len);
+    std::string_view host_name{host_name_ptr, size_t(host_len)};
+    Log::error("%s", lbw()
+                       .clip(1)
+                       .print("CONNECT: attempt fail [{}] to {} for host='{}' "
+                              "connection_result={::s} error={::s} attempts={} url='{}'",
+                              HttpDebugNames::get_server_state_name(conn_state), s->current.server->dst_addr, host_name,
+                              ts::bwf::Errno(s->current.server->connect_result), ts::bwf::Errno(s->cause_of_death_errno),
+                              s->current.attempts, ts::bwf::FirstOf(url_str, "<none>"))
+                       .extend(1)
+                       .write('\0')
+                       .data());
+
+    s->arena.str_free(url_str);
   }
 }
 
@@ -4451,10 +4484,11 @@ HttpTransact::handle_cache_operation_on_forward_server_response(State *s)
     // cacheability of server response, and request method
     // precondition: s->cache_info.action is one of the following
     // CACHE_DO_UPDATE, CACHE_DO_WRITE, or CACHE_DO_DELETE
+    int const server_request_method = s->hdr_info.server_request.method_get_wksidx();
     if (s->api_server_response_no_store) {
       s->cache_info.action = CACHE_DO_NO_ACTION;
     } else if (s->api_server_response_ignore && server_response_code == HTTP_STATUS_OK &&
-               s->hdr_info.server_request.method_get_wksidx() == HTTP_WKSIDX_HEAD) {
+               server_request_method == HTTP_WKSIDX_HEAD) {
       s->api_server_response_ignore = false;
       ink_assert(s->cache_info.object_read);
       base_response        = s->cache_info.object_read->response_get();
@@ -4471,7 +4505,21 @@ HttpTransact::handle_cache_operation_on_forward_server_response(State *s)
       } else if (s->www_auth_content == CACHE_AUTH_STALE && server_response_code == HTTP_STATUS_UNAUTHORIZED) {
         s->cache_info.action = CACHE_DO_NO_ACTION;
       } else if (!cacheable) {
-        s->cache_info.action = CACHE_DO_DELETE;
+        if (HttpTransactHeaders::is_status_an_error_response(server_response_code) &&
+            !HttpTransactHeaders::is_method_safe(server_request_method)) {
+          // Only delete the cache entry if the response is successful. For
+          // unsuccessful responses, the transaction doesn't invalidate our
+          // entry. This behavior complies with RFC 7234, section 4.4 which
+          // stipulates that the entry only need be invalidated for non-error
+          // responses:
+          //
+          //    A cache MUST invalidate the effective request URI (Section 5.5 of
+          //    [RFC7230]) when it receives a non-error response to a request
+          //    with a method whose safety is unknown.
+          s->cache_info.action = CACHE_DO_NO_ACTION;
+        } else {
+          s->cache_info.action = CACHE_DO_DELETE;
+        }
       } else if (s->method == HTTP_WKSIDX_HEAD) {
         s->cache_info.action = CACHE_DO_DELETE;
       } else {
@@ -4489,7 +4537,19 @@ HttpTransact::handle_cache_operation_on_forward_server_response(State *s)
       }
 
     } else if (s->cache_info.action == CACHE_DO_DELETE) {
-      // do nothing
+      if (!cacheable && HttpTransactHeaders::is_status_an_error_response(server_response_code) &&
+          !HttpTransactHeaders::is_method_safe(server_request_method)) {
+        // Only delete the cache entry if the response is successful. For
+        // unsuccessful responses, the transaction doesn't invalidate our
+        // entry. This behavior complies with RFC 7234, section 4.4 which
+        // stipulates that the entry only need be invalidated for non-error
+        // responses:
+        //
+        //    A cache MUST invalidate the effective request URI (Section 5.5 of
+        //    [RFC7230]) when it receives a non-error response to a request
+        //    with a method whose safety is unknown.
+        s->cache_info.action = CACHE_DO_NO_ACTION;
+      }
 
     } else {
       ink_assert(!("cache action inconsistent with current state"));
@@ -5320,6 +5380,9 @@ HttpTransact::add_client_ip_to_outgoing_request(State *s, HTTPHdr *request)
 HttpTransact::RequestError_t
 HttpTransact::check_request_validity(State *s, HTTPHdr *incoming_hdr)
 {
+  // Called also on receiving request.  Not sure if we need to call this again in case
+  // the transfer-encoding and content-length headers changed
+  set_client_request_state(s, incoming_hdr);
   if (incoming_hdr == nullptr) {
     return NON_EXISTANT_REQUEST_HEADER;
   }
@@ -5342,44 +5405,6 @@ HttpTransact::check_request_validity(State *s, HTTPHdr *incoming_hdr)
 
   int scheme = incoming_url->scheme_get_wksidx();
   int method = incoming_hdr->method_get_wksidx();
-
-  // Check for chunked encoding
-  if (incoming_hdr->presence(MIME_PRESENCE_TRANSFER_ENCODING)) {
-    MIMEField *field = incoming_hdr->field_find(MIME_FIELD_TRANSFER_ENCODING, MIME_LEN_TRANSFER_ENCODING);
-    if (field) {
-      HdrCsvIter enc_val_iter;
-      int enc_val_len;
-      const char *enc_value = enc_val_iter.get_first(field, &enc_val_len);
-
-      while (enc_value) {
-        const char *wks_value = hdrtoken_string_to_wks(enc_value, enc_val_len);
-        if (wks_value == HTTP_VALUE_CHUNKED) {
-          s->client_info.transfer_encoding = CHUNKED_ENCODING;
-          break;
-        }
-        enc_value = enc_val_iter.get_next(&enc_val_len);
-      }
-    }
-  }
-
-  /////////////////////////////////////////////////////
-  // get request content length                      //
-  // To avoid parsing content-length twice, we set   //
-  // s->hdr_info.request_content_length here rather  //
-  // than in initialize_state_variables_from_request //
-  /////////////////////////////////////////////////////
-  if (method != HTTP_WKSIDX_TRACE) {
-    if (incoming_hdr->presence(MIME_PRESENCE_CONTENT_LENGTH)) {
-      s->hdr_info.request_content_length = incoming_hdr->get_content_length();
-    } else {
-      s->hdr_info.request_content_length = HTTP_UNDEFINED_CL; // content length less than zero is invalid
-    }
-
-    TxnDebug("http_trans", "[init_stat_vars_from_req] set req cont length to %" PRId64, s->hdr_info.request_content_length);
-
-  } else {
-    s->hdr_info.request_content_length = 0;
-  }
 
   if (!((scheme == URL_WKSIDX_HTTP) && (method == HTTP_WKSIDX_GET))) {
     if (scheme != URL_WKSIDX_HTTP && scheme != URL_WKSIDX_HTTPS && method != HTTP_WKSIDX_CONNECT &&
@@ -5457,6 +5482,47 @@ HttpTransact::check_request_validity(State *s, HTTPHdr *incoming_hdr)
   }
 
   return NO_REQUEST_HEADER_ERROR;
+}
+
+void
+HttpTransact::set_client_request_state(State *s, HTTPHdr *incoming_hdr)
+{
+  if (incoming_hdr == nullptr) {
+    return;
+  }
+
+  // Set transfer_encoding value
+  if (incoming_hdr->presence(MIME_PRESENCE_TRANSFER_ENCODING)) {
+    MIMEField *field = incoming_hdr->field_find(MIME_FIELD_TRANSFER_ENCODING, MIME_LEN_TRANSFER_ENCODING);
+    if (field) {
+      HdrCsvIter enc_val_iter;
+      int enc_val_len;
+      const char *enc_value = enc_val_iter.get_first(field, &enc_val_len);
+
+      while (enc_value) {
+        const char *wks_value = hdrtoken_string_to_wks(enc_value, enc_val_len);
+        if (wks_value == HTTP_VALUE_CHUNKED) {
+          s->client_info.transfer_encoding = CHUNKED_ENCODING;
+          break;
+        }
+        enc_value = enc_val_iter.get_next(&enc_val_len);
+      }
+    }
+  }
+
+  /////////////////////////////////////////////////////
+  // get request content length                      //
+  // To avoid parsing content-length twice, we set   //
+  // s->hdr_info.request_content_length here rather  //
+  // than in initialize_state_variables_from_request //
+  /////////////////////////////////////////////////////
+  if (incoming_hdr->presence(MIME_PRESENCE_CONTENT_LENGTH)) {
+    s->hdr_info.request_content_length = incoming_hdr->get_content_length();
+  } else {
+    s->hdr_info.request_content_length = HTTP_UNDEFINED_CL; // content length less than zero is invalid
+  }
+
+  TxnDebug("http_trans", "[set_client_request_state] set req cont length to %" PRId64, s->hdr_info.request_content_length);
 }
 
 HttpTransact::ResponseError_t
@@ -5892,6 +5958,18 @@ HttpTransact::is_cache_response_returnable(State *s)
   }
 
   if (!HttpTransactHeaders::is_method_cacheable(s->http_config_param, s->method) && s->api_resp_cacheable == false) {
+    SET_VIA_STRING(VIA_CACHE_RESULT, VIA_IN_CACHE_NOT_ACCEPTABLE);
+    SET_VIA_STRING(VIA_DETAIL_CACHE_LOOKUP, VIA_DETAIL_MISS_METHOD);
+    return false;
+  }
+  // We may be caching responses to methods other than GET, such as POST. Make
+  // sure that our cached resource has a method that matches the incoming
+  // requests's method. If not, then we cannot reply with the cached resource.
+  // That is, we cannot reply to an incoming GET request with a response to a
+  // previous POST request.
+  int const client_request_method = s->hdr_info.client_request.method_get_wksidx();
+  int const cached_request_method = s->cache_info.object_read->request_get()->method_get_wksidx();
+  if (client_request_method != cached_request_method) {
     SET_VIA_STRING(VIA_CACHE_RESULT, VIA_IN_CACHE_NOT_ACCEPTABLE);
     SET_VIA_STRING(VIA_DETAIL_CACHE_LOOKUP, VIA_DETAIL_MISS_METHOD);
     return false;
@@ -7705,9 +7783,12 @@ HttpTransact::build_request(State *s, HTTPHdr *base_request, HTTPHdr *outgoing_r
 
   // HttpTransactHeaders::convert_request(outgoing_version, outgoing_request); // commented out this idea
 
+  URL *url = outgoing_request->url_get();
+  // Remove fragment from upstream URL
+  url->fragment_set(NULL, 0);
+
   // Check whether a Host header field is missing from a 1.0 or 1.1 request.
   if (outgoing_version != HTTP_0_9 && !outgoing_request->presence(MIME_PRESENCE_HOST)) {
-    URL *url = outgoing_request->url_get();
     int host_len;
     const char *host = url->host_get(&host_len);
 
@@ -8071,6 +8152,9 @@ HttpTransact::build_error_response(State *s, HTTPStatus status_code, const char 
       retry_after = ret_tmp;
     }
     s->congestion_control_crat = retry_after;
+  } else if (status_code == HTTP_STATUS_BAD_REQUEST) {
+    // Close the client connection after a malformed request
+    s->client_info.keep_alive = HTTP_NO_KEEPALIVE;
   }
 
   // Add a bunch of headers to make sure that caches between

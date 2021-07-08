@@ -267,7 +267,8 @@ HttpRequestData::get_client_ip()
   return nullptr;
 }
 
-SslAPIHooks *ssl_hooks = nullptr;
+SslAPIHooks *ssl_hooks             = nullptr;
+LifecycleAPIHooks *lifecycle_hooks = nullptr;
 StatPagesManager statPagesManager;
 
 #include "HttpDebugNames.h"
@@ -305,7 +306,7 @@ HttpSM::handle_api_return()
 }
 
 void
-HttpSM::attach_client_session(ProxyTransaction *, IOBufferReader *)
+HttpSM::attach_client_session(ProxyTransaction *)
 {
   ink_abort("do not call stub");
 }

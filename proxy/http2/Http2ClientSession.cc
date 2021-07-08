@@ -84,11 +84,6 @@ Http2ClientSession::destroy()
 void
 Http2ClientSession::free()
 {
-  if (this->_reenable_event) {
-    this->_reenable_event->cancel();
-    this->_reenable_event = nullptr;
-  }
-
   if (_vc) {
     _vc->do_io_close();
     _vc = nullptr;
@@ -104,6 +99,11 @@ Http2ClientSession::free()
 
   REMEMBER(NO_EVENT, this->recursion)
   Http2SsnDebug("session free");
+
+  if (this->_reenable_event) {
+    this->_reenable_event->cancel();
+    this->_reenable_event = nullptr;
+  }
 
   // Don't free active ProxySession
   ink_release_assert(is_active() == false);
@@ -177,8 +177,8 @@ Http2ClientSession::start()
   VIO *read_vio = this->do_io_read(this, INT64_MAX, this->read_buffer);
   write_vio     = this->do_io_write(this, INT64_MAX, this->_write_buffer_reader);
 
-  this->connection_state.init();
-  send_connection_event(&this->connection_state, HTTP2_SESSION_EVENT_INIT, this);
+  this->connection_state.init(this);
+  this->connection_state.send_connection_preface();
 
   if (this->_read_buffer_reader->is_read_avail_more_than(0)) {
     this->handleEvent(VC_EVENT_READ_READY, read_vio);
@@ -523,7 +523,8 @@ Http2ClientSession::do_complete_frame_read()
   ink_release_assert(this->_read_buffer_reader->read_avail() >= this->current_hdr.length);
 
   Http2Frame frame(this->current_hdr, this->_read_buffer_reader, this->cur_frame_from_early_data);
-  send_connection_event(&this->connection_state, HTTP2_SESSION_EVENT_RECV, &frame);
+  connection_state.rcv_frame(&frame);
+
   // Check whether data is read from early data
   if (this->read_from_early_data > 0) {
     this->read_from_early_data -=
@@ -593,7 +594,7 @@ Http2ClientSession::do_process_frame_read(int event, VIO *vio, bool inside_frame
   }
 
   // If the client hasn't shut us down, reenable
-  if (!this->is_client_closed()) {
+  if (!this->is_peer_closed()) {
     vio->reenable();
   }
   return 0;
@@ -620,8 +621,8 @@ Http2ClientSession::remember(const SourceLocation &location, int event, int reen
 bool
 Http2ClientSession::_should_do_something_else()
 {
-  // Do something else every 128 incoming frames
-  return (this->_n_frame_read & 0x7F) == 0;
+  // Do something else every 128 incoming frames if connection state isn't closed
+  return (this->_n_frame_read & 0x7F) == 0 && !connection_state.is_state_closed();
 }
 
 sockaddr const *

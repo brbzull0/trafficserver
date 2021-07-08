@@ -4949,9 +4949,9 @@ TSHttpTxnServerVConnGet(TSHttpTxn txnp)
   sdk_assert(sdk_sanity_check_txn(txnp) == TS_SUCCESS);
   HttpSM *sm = reinterpret_cast<HttpSM *>(txnp);
   if (sm != nullptr) {
-    PoolableSession *ss = sm->get_server_session();
-    if (ss != nullptr) {
-      vconn = reinterpret_cast<TSVConn>(ss->get_netvc());
+    ProxyTransaction *st = sm->get_server_txn();
+    if (st != nullptr) {
+      vconn = reinterpret_cast<TSVConn>(st->get_netvc());
     }
   }
   return vconn;
@@ -5676,16 +5676,18 @@ TSHttpTxnShutDown(TSHttpTxn txnp, TSEvent event)
 }
 
 TSReturnCode
-TSHttpTxnAborted(TSHttpTxn txnp)
+TSHttpTxnAborted(TSHttpTxn txnp, bool *client_abort)
 {
   sdk_assert(sdk_sanity_check_txn(txnp) == TS_SUCCESS);
 
-  HttpSM *sm = (HttpSM *)txnp;
+  *client_abort = false;
+  HttpSM *sm    = (HttpSM *)txnp;
   switch (sm->t_state.squid_codes.log_code) {
   case SQUID_LOG_ERR_CLIENT_ABORT:
   case SQUID_LOG_ERR_CLIENT_READ_ERROR:
   case SQUID_LOG_TCP_SWAPFAIL:
     // check for client abort and cache read error
+    *client_abort = true;
     return TS_SUCCESS;
   default:
     break;
@@ -5823,17 +5825,15 @@ TSHttpTxnOutgoingAddrGet(TSHttpTxn txnp)
 
   HttpSM *sm = reinterpret_cast<HttpSM *>(txnp);
 
-  PoolableSession *ssn = sm->get_server_session();
-  if (ssn == nullptr) {
-    return nullptr;
+  const sockaddr *retval = nullptr;
+  ProxyTransaction *ssn  = sm->get_server_txn();
+  if (ssn != nullptr) {
+    NetVConnection *vc = ssn->get_netvc();
+    if (vc != nullptr) {
+      retval = vc->get_local_addr();
+    }
   }
-
-  NetVConnection *vc = ssn->get_netvc();
-  if (vc == nullptr) {
-    return nullptr;
-  }
-
-  return vc->get_local_addr();
+  return retval;
 }
 
 sockaddr const *
@@ -5957,14 +5957,12 @@ TSHttpTxnServerPacketMarkSet(TSHttpTxn txnp, int mark)
   HttpSM *sm = (HttpSM *)txnp;
 
   // change the mark on an active server session
-  if (nullptr != sm->ua_txn) {
-    PoolableSession *ssn = sm->ua_txn->get_server_session();
-    if (nullptr != ssn) {
-      NetVConnection *vc = ssn->get_netvc();
-      if (vc != nullptr) {
-        vc->options.packet_mark = (uint32_t)mark;
-        vc->apply_options();
-      }
+  ProxyTransaction *ssn = sm->get_server_txn();
+  if (nullptr != ssn) {
+    NetVConnection *vc = ssn->get_netvc();
+    if (vc != nullptr) {
+      vc->options.packet_mark = (uint32_t)mark;
+      vc->apply_options();
     }
   }
 
@@ -5999,14 +5997,12 @@ TSHttpTxnServerPacketTosSet(TSHttpTxn txnp, int tos)
   HttpSM *sm = (HttpSM *)txnp;
 
   // change the tos on an active server session
-  if (nullptr != sm->ua_txn) {
-    PoolableSession *ssn = sm->ua_txn->get_server_session();
-    if (nullptr != ssn) {
-      NetVConnection *vc = ssn->get_netvc();
-      if (vc != nullptr) {
-        vc->options.packet_tos = (uint32_t)tos;
-        vc->apply_options();
-      }
+  ProxyTransaction *ssn = sm->get_server_txn();
+  if (nullptr != ssn) {
+    NetVConnection *vc = ssn->get_netvc();
+    if (vc != nullptr) {
+      vc->options.packet_tos = (uint32_t)tos;
+      vc->apply_options();
     }
   }
 
@@ -6041,14 +6037,12 @@ TSHttpTxnServerPacketDscpSet(TSHttpTxn txnp, int dscp)
   HttpSM *sm = (HttpSM *)txnp;
 
   // change the tos on an active server session
-  if (nullptr != sm->ua_txn) {
-    PoolableSession *ssn = sm->ua_txn->get_server_session();
-    if (nullptr != ssn) {
-      NetVConnection *vc = ssn->get_netvc();
-      if (vc != nullptr) {
-        vc->options.packet_tos = (uint32_t)dscp << 2;
-        vc->apply_options();
-      }
+  ProxyTransaction *ssn = sm->get_server_txn();
+  if (nullptr != ssn) {
+    NetVConnection *vc = ssn->get_netvc();
+    if (vc != nullptr) {
+      vc->options.packet_tos = (uint32_t)dscp << 2;
+      vc->apply_options();
     }
   }
 
@@ -7829,18 +7823,16 @@ TSHttpTxnServerFdGet(TSHttpTxn txnp, int *fdp)
   HttpSM *sm = reinterpret_cast<HttpSM *>(txnp);
   *fdp       = -1;
 
-  PoolableSession *ss = sm->get_server_session();
-  if (ss == nullptr) {
-    return TS_ERROR;
+  TSReturnCode retval  = TS_ERROR;
+  ProxyTransaction *ss = sm->get_server_txn();
+  if (ss != nullptr) {
+    NetVConnection *vc = ss->get_netvc();
+    if (vc != nullptr) {
+      *fdp   = vc->get_socket();
+      retval = TS_SUCCESS;
+    }
   }
-
-  NetVConnection *vc = ss->get_netvc();
-  if (vc == nullptr) {
-    return TS_ERROR;
-  }
-
-  *fdp = vc->get_socket();
-  return TS_SUCCESS;
+  return retval;
 }
 
 /* Matcher Utils */
@@ -8607,6 +8599,9 @@ _conf_to_memberp(TSOverridableConfigKey conf, OverridableHttpConfigParams *overr
   case TS_CONFIG_HTTP_CONNECT_ATTEMPTS_MAX_RETRIES_DEAD_SERVER:
     ret = _memberp_to_generic(&overridableHttpConfig->connect_attempts_max_retries_dead_server, conv);
     break;
+  case TS_CONFIG_HTTP_CONNECT_DEAD_POLICY:
+    ret = _memberp_to_generic(&overridableHttpConfig->connect_dead_policy, conv);
+    break;
   case TS_CONFIG_HTTP_CONNECT_ATTEMPTS_RR_RETRIES:
     ret = _memberp_to_generic(&overridableHttpConfig->connect_attempts_rr_retries, conv);
     break;
@@ -9363,6 +9358,71 @@ TSSslContextFindByAddr(struct sockaddr const *addr)
     SSLCertificateConfig::release(lookup);
   }
   return ret;
+}
+
+/**
+ * This function sets the secret cache value for a given secret name.  This allows
+ * plugins to load cert/key PEM information on for use by the TLS core
+ */
+tsapi TSReturnCode
+TSSslSecretSet(const char *secret_name, int secret_name_length, const char *secret_data, int secret_data_len)
+{
+  TSReturnCode retval          = TS_SUCCESS;
+  SSLConfigParams *load_params = SSLConfig::load_acquire();
+  SSLConfigParams *params      = SSLConfig::acquire();
+  if (load_params != nullptr) { // Update the current data structure
+    if (!load_params->secrets.setSecret(std::string(secret_name, secret_name_length), secret_data, secret_data_len)) {
+      retval = TS_ERROR;
+    }
+    SSLConfig::load_release(params);
+  }
+  if (params != nullptr) {
+    if (!params->secrets.setSecret(std::string(secret_name, secret_name_length), secret_data, secret_data_len)) {
+      retval = TS_ERROR;
+    }
+    SSLConfig::release(params);
+  }
+  return retval;
+}
+
+tsapi TSReturnCode
+TSSslSecretUpdate(const char *secret_name, int secret_name_length)
+{
+  TSReturnCode retval     = TS_SUCCESS;
+  SSLConfigParams *params = SSLConfig::acquire();
+  if (params != nullptr) {
+    params->updateCTX(std::string(secret_name, secret_name_length));
+  }
+  SSLConfig::release(params);
+  return retval;
+}
+
+tsapi TSReturnCode
+TSSslSecretGet(const char *secret_name, int secret_name_length, const char **secret_data_return, int *secret_data_len)
+{
+  bool loading            = true;
+  TSReturnCode retval     = TS_SUCCESS;
+  SSLConfigParams *params = SSLConfig::load_acquire();
+  if (params == nullptr) {
+    params  = SSLConfig::acquire();
+    loading = false;
+  }
+  std::string_view secret_data;
+  if (!params->secrets.getSecret(std::string(secret_name, secret_name_length), secret_data)) {
+    retval = TS_ERROR;
+  }
+  if (secret_data_return) {
+    *secret_data_return = secret_data.data();
+  }
+  if (secret_data_len) {
+    *secret_data_len = secret_data.size();
+  }
+  if (loading) {
+    SSLConfig::load_release(params);
+  } else {
+    SSLConfig::release(params);
+  }
+  return retval;
 }
 
 /**
