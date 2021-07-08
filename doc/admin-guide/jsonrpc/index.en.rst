@@ -20,7 +20,7 @@
 .. highlight:: cpp
 .. default-domain:: cpp
 
-.. |RPC| replace:: ``JSONRPC 2.0``
+.. |RPC| replace:: JSONRPC 2.0
 
 .. _admin-jsonrpc:
 
