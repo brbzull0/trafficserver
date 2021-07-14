@@ -87,6 +87,12 @@ CtrlCommand::invoke_rpc(CtrlClientRequest const &request)
   return Codec::decode(resp);
 }
 
+void
+CtrlCommand::invoke_rpc(CtrlClientRequest const &request, std::string &resp)
+{
+  std::string encodedRequest = Codec::encode(request);
+  resp                       = invoke_rpc(encodedRequest);
+}
 // -----------------------------------------------------------------------------------------------------------------------------------
 RecordCommand::RecordCommand(ts::Arguments args) : CtrlCommand(args) {}
 
@@ -365,7 +371,8 @@ void
 DirectRPCCommand::from_file_request()
 {
   // TODO: remove all the output messages from here if possible
-  auto filenames = _arguments.get("file");
+  auto filenames        = _arguments.get("file");
+  bool showResponseOnly = _arguments.get("resp") ? true : false;
   for (auto &&filename : filenames) {
     std::string text;
     // run some basic validation on the passed files, they should
@@ -375,12 +382,17 @@ DirectRPCCommand::from_file_request()
 
       if (!validate_input(content)) {
         _printer->write_output(
-          ts::bwprint(text, "Content not accepted. expecting a valid sequence or structure {} skipped.\n", filename));
+          ts::bwprint(text, "Content not accepted. expecting a valid sequence or structure. {} skipped.\n", filename));
         continue;
       }
-      _printer->write_output(ts::bwprint(text, "\n[ {} ]\n --> \n{}\n", filename, content));
       std::string const &response = invoke_rpc(content);
-      _printer->write_output(ts::bwprint(text, "<--\n{}\n", response));
+      if (!showResponseOnly) {
+        _printer->write_output(ts::bwprint(text, "\n[ {} ]\n --> \n{}\n", filename, content));
+        _printer->write_output(ts::bwprint(text, "<--\n{}\n", response));
+      } else {
+        _printer->write_output(ts::bwprint(text, "{}\n", response));
+      }
+
     } catch (std::exception const &ex) {
       _printer->write_output(ts::bwprint(text, "Error found: {}\n", ex.what()));
     }
@@ -416,6 +428,7 @@ DirectRPCCommand::read_from_input()
     _printer->write_output(ts::bwprint(text, "Error found: {}\n", ex.what()));
   }
 }
+
 //------------------------------------------------------------------------------------------------------------------------------------
 ServerCommand::ServerCommand(ts::Arguments args) : CtrlCommand(args)
 {

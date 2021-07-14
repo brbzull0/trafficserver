@@ -71,7 +71,7 @@ public:
   virtual void
   write_output(std::string_view output)
   {
-    std::cout << output;
+    std::cout << output << '\n';
   }
 
 protected:

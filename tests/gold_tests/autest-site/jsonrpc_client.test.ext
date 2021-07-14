@@ -1,0 +1,133 @@
+import os
+import tempfile
+import jsonrpc
+from typing import Any, Optional
+from autest.testers import Tester, tester
+import hosts.output as host
+from autest.exceptions.killonfailure import KillOnFailureError
+
+
+def AddJsonRPCClientRequest(obj, ts, request):
+    '''
+    Function to add a JSONRPC request into a process. This function will internally generate a call to traffic_ctl.
+    As traffic_ctl can send request by reading from a file, internally this function will create a temporary json file
+    and will be passed as parameter to traffic_ctl, taking only the output as response (-z).
+
+    Args:
+        request:
+            request should be created by the Request api(jsonrpc.py). ie:
+
+            tr = Test.AddTestRun("Test JSONRPC foo_bar()")
+            tr.AddJsonRPCClientRequest(ts, Request.foo_bar(fqdn=["yahoo.com", "aol.com", "vz.com"]))
+
+        ts:
+          traffic_server object, this is needed in order to traffic_ctl find the right socket.
+
+    Validating the response:
+
+    Either by the regular validation mechanism already provided by the Testing framework or by using CustomJSONRPCResponse Tester
+    which will let you read the response as a dict and play with it. See CustomJSONRPCResponse for more  details.
+    '''
+    process = obj.Processes.Default
+    reqFile = tempfile.NamedTemporaryFile(delete=False, dir=process.RunDirectory, suffix=f"_{obj.Name}.json")
+
+    with open(reqFile.name, "w") as req:
+        req.write(str(request))
+
+    command = f"traffic_ctl rpc file -z {reqFile.name} "
+    if ts:
+        command += f"--run-root {ts.Disk.runroot_yaml.Name}"
+
+    process.Command = command
+    process.ReturnCode = 0
+
+    return process
+
+
+def AddJsonRPCShowRegisterHandlerRequest(obj, ts):
+    '''
+    Handy function to request all the registered endpoints in the RPC engine. A good way to validate that your new RPC handler
+    is available through the RPC by calling this function and validating the response. ie:
+
+        tr = Test.AddTestRun("Test registered API - using AddJsonRPCShowRegisterHandlerRequest")
+        tr.AddJsonRPCShowRegisterHandlerRequest(ts)
+
+        tr.Processes.Default.Streams.stdout = All(
+            Testers.IncludesExpression('foo_bar', 'Should  be listed'),
+        )
+    '''
+    return AddJsonRPCClientRequest(obj, ts, jsonrpc.Request.show_registered_handlers())
+
+
+# Testers
+class CustomJSONRPCResponse(Tester):
+
+    '''
+    Custom tester that provides the user the ability to be called with the response from the RPC. The registered function will be
+    called with the jsonrpc.Response(jsonrpc.py).
+
+    Args:
+        func:
+            The function that will be called to perform a custom validation of the jsonrpc
+            message.
+
+    Example:
+
+        tr = Test.AddTestRun("Test update_host_status")
+        Params = [
+            {'name': 'yahoo', 'status': 'up'}
+        ]
+
+        tr.AddJsonRPCClientRequest(ts, Request.update_host_status(hosts=Params))
+
+
+        def check_no_error_on_response(resp: Response):
+            # we only check if it's an error.
+            if resp.is_error():
+                return (False, resp.error_as_str())
+            return (True, "All good")
+
+        tr.Processes.Default.Streams.stdout = Testers.CustomJSONRPCResponse(check_no_error_on_response)
+
+    '''
+
+    def __init__(self,
+                 func: Any,
+                 test_value=None,
+                 kill_on_failure: bool = False,
+                 description_group: Optional[str] = None,
+                 description: Optional[str] = None):
+        if description is None:
+            description = "Validating jsonrpc 2.0 response"
+
+        super(CustomJSONRPCResponse, self).__init__(
+            value=func,
+            test_value=test_value,
+            kill_on_failure=kill_on_failure,
+            description_group=description_group,
+            description=description)
+
+    def test(self, eventinfo, **kw):
+
+        response_text = {}
+        with open(self._GetContent(eventinfo), "r") as resp:
+            response_text = resp.read()
+
+        (testPassed, reason) = self.Value(jsonrpc.Response(text=response_text))
+
+        if testPassed:
+            self.Result = tester.ResultType.Passed
+            self.Reason = f"Returned value: {reason}"
+            host.WriteVerbose(
+                ["testers.GreaterThan", "testers"], f"tester.ResultType.to_color_string(self.Result) - ", self.Reason)
+        else:
+            self.Result = tester.ResultType.Failed
+            self.Reason = f"Returned value: {reason}"
+            if self.KillOnFailure:
+                raise KillOnFailureError
+
+
+# Export
+AddTester(CustomJSONRPCResponse)
+ExtendTestRun(AddJsonRPCShowRegisterHandlerRequest, name="AddJsonRPCShowRegisterHandlerRequest")
+ExtendTestRun(AddJsonRPCClientRequest, name="AddJsonRPCClientRequest")

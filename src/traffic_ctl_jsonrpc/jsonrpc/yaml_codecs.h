@@ -24,10 +24,12 @@
 
 #include "RPCRequests.h"
 
+namespace
+{
 // For some fields, If we can't get the value, then just send the default/empty value. Let the
 // traffic_ctl display something.
 template <typename T>
-static auto
+auto
 try_extract(YAML::Node const &node, const char *name, bool throwOnFail = false)
 {
   try {
@@ -41,6 +43,7 @@ try_extract(YAML::Node const &node, const char *name, bool throwOnFail = false)
   }
   return T{};
 }
+} // namespace
 /**
  * YAML namespace. All json rpc request codecs can be placed here. It will read all the definitions from "requests.h"
  * It's noted that there may be some duplicated with the rpc server implementation structures but as this is very simple idiom where

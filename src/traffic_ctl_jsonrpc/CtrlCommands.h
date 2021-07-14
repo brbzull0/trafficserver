@@ -64,6 +64,8 @@ protected:
   /// @param A Client request.
   /// @return A server response.
   specs::JSONRPCResponse invoke_rpc(CtrlClientRequest const &request);
+  /// @brief Function that calls the rpc server. The response will not be decoded, it will be a raw string.
+  void invoke_rpc(CtrlClientRequest const &request, std::string &bw);
 
   ts::Arguments _arguments;              //!< parsed traffic_ctl arguments.
   std::unique_ptr<BasePrinter> _printer; //!< Specific output formatter. This should be created by the derived class.

@@ -140,6 +140,7 @@ main(int argc, const char **argv)
   direct_rpc_command
     .add_command("file", "Send direct JSONRPC request to the server from a passed file(s)", "", MORE_THAN_ONE_ARG_N,
                  [&]() { command->execute(); })
+    .add_option("--resp", "-z", "Display only the raw response.")
     .add_example_usage("traffic_ctl rpc file request.yaml");
   direct_rpc_command.add_command("get-api", "Request full API from server", "", 0, [&]() { command->execute(); })
     .add_example_usage("traffic_ctl rpc get-api");
