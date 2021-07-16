@@ -69,7 +69,6 @@ protected:
 
   ts::Arguments _arguments;              //!< parsed traffic_ctl arguments.
   std::unique_ptr<BasePrinter> _printer; //!< Specific output formatter. This should be created by the derived class.
-  bool _debugRpcRawMsg{false};           //!< This will be set in case of "--debugrpc" was specified.
 
   /// @brief The whole design is that the command will execute the @c _invoked_func once invoked. This function ptr should be
   ///        set by the appropriated derived class base on the passed parameters. The derived class have the option to override

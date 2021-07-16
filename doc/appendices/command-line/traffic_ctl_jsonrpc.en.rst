@@ -74,16 +74,24 @@ Options
 
 .. option:: -f, --format
 
-   Specify the output print style. `legacy` and `pretty` are availables.
-   `legacy` will honour the old :program:`traffic_ctl` output messages. `pretty` <if available> will print a different output.
-   Errors from the server will be display if ``pretty`` is specified.
-   In case of a record request(config, metric) ``--records`` overrides this flag.
+   Specify the output print style.
+
+   =================== ========================================================================
+   Options             Description
+   =================== ========================================================================
+   ``legacy``          Will honour the old :program:`traffic_ctl` output messages. This is the default format type.
+   ``pretty``          <if available> will print a different output, a prettier output. This depends on the implementation,
+                       it's not required to always implement a pretty output
+   ``json``            It will show the response message formatted to |JSON|. This is ideal if you want to redirect the stdout to a different source.
+                       It will only stream the json response, no other messages.
+   ``data``            This is an addon to the default format style, data can be: ``{req|resp|all}`` which will make :program:`traffic_ctl`
+                       to print in json format the request or response or both.
+                       Example: `traffic_ctl config get variable --format data:req`
+   =================== ========================================================================
+
+   In case of a record request(config) ``--records`` overrides this flag.
 
    Default: ``legacy``
-
-.. option:: -r, --debugrpc
-
-   Display human readable rpc messages. This will display the request and the response from the server.
 
 .. option:: --records
 

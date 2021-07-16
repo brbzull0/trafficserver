@@ -55,6 +55,8 @@ struct JSONRPCResponse {
   {
     return !error.IsNull();
   }
+
+  YAML::Node fullMsg;
 };
 
 struct JSONRPCError {

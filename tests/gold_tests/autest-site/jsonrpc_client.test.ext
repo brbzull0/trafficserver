@@ -7,13 +7,15 @@ import hosts.output as host
 from autest.exceptions.killonfailure import KillOnFailureError
 
 
-def AddJsonRPCClientRequest(obj, ts, request):
+def AddJsonRPCClientRequest(obj, ts, request='', file=None):
     '''
     Function to add a JSONRPC request into a process. This function will internally generate a call to traffic_ctl.
     As traffic_ctl can send request by reading from a file, internally this function will create a temporary json file
     and will be passed as parameter to traffic_ctl, taking only the output as response (-z).
 
     Args:
+        file: The file name used to read the request.
+
         request:
             request should be created by the Request api(jsonrpc.py). ie:
 
@@ -28,15 +30,21 @@ def AddJsonRPCClientRequest(obj, ts, request):
     Either by the regular validation mechanism already provided by the Testing framework or by using CustomJSONRPCResponse Tester
     which will let you read the response as a dict and play with it. See CustomJSONRPCResponse for more  details.
     '''
+    fileName = ''
     process = obj.Processes.Default
-    reqFile = tempfile.NamedTemporaryFile(delete=False, dir=process.RunDirectory, suffix=f"_{obj.Name}.json")
+    if file is None:
+        reqFile = tempfile.NamedTemporaryFile(delete=False, dir=process.RunDirectory, suffix=f"_{obj.Name}.json")
+        fileName = reqFile.name
+        with open(fileName, "w") as req:
+            req.write(str(request))
+    else:
+        fileName = file
 
-    with open(reqFile.name, "w") as req:
-        req.write(str(request))
-
-    command = f"traffic_ctl rpc file -z {reqFile.name} "
+    command = f"traffic_ctl rpc file {fileName} "
     if ts:
-        command += f"--run-root {ts.Disk.runroot_yaml.Name}"
+        command += f" --run-root {ts.Disk.runroot_yaml.Name}"
+
+    command += ' --format json'  # we only want the output.
 
     process.Command = command
     process.ReturnCode = 0
