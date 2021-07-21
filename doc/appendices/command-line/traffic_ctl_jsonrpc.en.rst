@@ -84,14 +84,39 @@ Options
                        it's not required to always implement a pretty output
    ``json``            It will show the response message formatted to |JSON|. This is ideal if you want to redirect the stdout to a different source.
                        It will only stream the json response, no other messages.
-   ``data``            This is an addon to the default format style, data can be: ``{req|resp|all}`` which will make :program:`traffic_ctl`
+   ``data:``           This is an addon to the default format style, data can be: ``{req|resp|all}`` which will make :program:`traffic_ctl`
                        to print in json format the request or response or both.
-                       Example: `traffic_ctl config get variable --format data:req`
    =================== ========================================================================
 
    In case of a record request(config) ``--records`` overrides this flag.
 
    Default: ``legacy``
+
+   Example:
+
+   .. code-block::
+
+      traffic_ctl config get variable --format data:req
+      --> {request}
+
+   .. code-block::
+
+      $ traffic_ctl config get variable --format data:resp
+      <-- {response}
+
+   .. code-block::
+
+      $ traffic_ctl config get variable --format data:all
+      --> {request}
+      <-- {response}
+
+   .. code-block::
+
+      $ traffic_ctl config get variable --format json
+      {response}
+
+   There will be no print out beside the json response. This is ideal to redirect to a file.
+
 
 .. option:: --records
 
