@@ -109,7 +109,7 @@ def AddJsonRPCClientRequest(obj, ts, request='', file=None, schema_file_name=Non
     else:
         fileName = file
 
-    command = f"traffic_ctl rpc file {fileName} "
+    command = f"{ts.Variables.BINDIR}/traffic_ctl rpc file {fileName} "
     if ts:
         command += f" --run-root {ts.Disk.runroot_yaml.Name}"
 
