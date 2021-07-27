@@ -13,12 +13,11 @@ JSONRPC Request convenient class helper.
 #
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  WITHOUT WARRANTIES OR CONDITIONS OF typing.ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-
-from typing import List, Callable, Any, Union
+import typing
 from collections import OrderedDict
 import json
 import uuid
@@ -28,8 +27,8 @@ class BaseRequestType(type):
     '''
     Base class for both, request and notifications
     '''
-    def __getattr__(cls: Callable, name: str) -> Callable:
-        def attr_handler(*args: Any, **kwargs: Any) -> "Request":
+    def __getattr__(cls: typing.Callable, name: str) -> typing.Callable:
+        def attr_handler(*args: typing.Any, **kwargs: typing.Any) -> "Request":
             return cls(name, *args, **kwargs)
         return attr_handler
 
@@ -72,7 +71,7 @@ class Notification(dict, metaclass=BaseRequestType):
 
     '''
 
-    def __init__(self, method: str, *args: Any, **kwargs: Any):
+    def __init__(self, method: str, *args: typing.Any, **kwargs: typing.Any):
         super(Notification, self).__init__(jsonrpc='2.0', method=method)
         if args and kwargs:
             plist = list(args)
@@ -141,9 +140,10 @@ class Request(Notification):
                 }
             }
 
+    Note: Use full namespace to avoid name collision => jsonrpc.Request, jsonrpc.Response, etc.
     '''
 
-    def __init__(self, method: str, *args: Any, **kwargs: Any):
+    def __init__(self, method: str, *args: typing.Any, **kwargs: typing.Any):
         if 'id' in kwargs:
             self.update(id=kwargs.pop('id'))  # avoid duplicated
         else:
@@ -156,11 +156,11 @@ class Request(Notification):
 
 
 class BatchRequest(list):
-    def __init__(self, *args: Union[Request, Notification]):
+    def __init__(self, *args: typing.Union[Request, Notification]):
         for r in args:
             self.append(r)
 
-    def add_request(self, req: Union[Request, Notification]):
+    def add_request(self, req: typing.Union[Request, Notification]):
         self.append(req)
 
     def __str__(self) -> str:

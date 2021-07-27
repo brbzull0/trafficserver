@@ -37,13 +37,13 @@ def substitute_context_in_file(process, file, context):
     if os.path.isdir(file):
         raise ValueError(f"Mapping substitution not supported for directories.")
 
-    with open(os.path.join(process.TestDirectory, file), 'r') as replay_file:
-        replay_template = Template(replay_file.read())
-        replay_content = replay_template.substitute(context)
+    with open(os.path.join(process.TestDirectory, file), 'r') as req_file:
+        req_template = Template(req_file.read())
+        req_content = req_template.substitute(context)
         tf = tempfile.NamedTemporaryFile(delete=False, dir=process.RunDirectory, suffix=f"_{os.path.basename(file)}")
         file = tf.name
-        with open(file, "w") as new_replay_file:
-            new_replay_file.write(replay_content)
+        with open(file, "w") as new_req_file:
+            new_req_file.write(req_content)
 
     return file
 
@@ -186,3 +186,7 @@ add_testrun_for_jsonrpc_request("Test admin_storage_get_device_status", request_
 # admin_storage_set_device_offline
 add_testrun_for_jsonrpc_request("Test admin_storage_set_device_offline", request_file_name='json/admin_storage_x_device_status_req.json',
                                 context={'method': 'admin_storage_set_device_offline', 'device': f'{storage_path}/cache.db'})
+
+# admin_plugin_send_basic_msg
+add_testrun_for_jsonrpc_request("Test admin_plugin_send_basic_msg", request_file_name='json/admin_plugin_send_basic_msg_req.json',
+                                result_schema_file_name=success_schema_file_name_name)

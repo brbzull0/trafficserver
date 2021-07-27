@@ -338,6 +338,7 @@ PluginCommand::PluginCommand(ts::Arguments args) : CtrlCommand(args)
   if (_arguments.get("msg")) {
     _invoked_func = [&]() { plugin_msg(); };
   }
+  _printer = std::make_unique<GenericPrinter>(parse_print_opts(_arguments));
 }
 
 void

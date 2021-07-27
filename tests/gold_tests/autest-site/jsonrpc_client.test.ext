@@ -3,9 +3,9 @@ import tempfile
 import jsonrpc
 import json
 import sys
+import typing
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
-from typing import Any, Optional
 from autest.testers import Tester, tester
 import hosts.output as host
 from autest.exceptions.killonfailure import KillOnFailureError
@@ -178,11 +178,11 @@ class CustomJSONRPCResponse(Tester):
     '''
 
     def __init__(self,
-                 func: Any,
+                 func: typing.Any,
                  test_value=None,
                  kill_on_failure: bool = False,
-                 description_group: Optional[str] = None,
-                 description: Optional[str] = None):
+                 description_group: typing.Optional[str] = None,
+                 description: typing.Optional[str] = None):
         if description is None:
             description = "Validating JSONRPC 2.0 response"
 
@@ -235,8 +235,8 @@ class JSONRPCResponseSchemaValidator(Tester, SchemaValidator):
                  value=None,
                  test_value=None,
                  kill_on_failure: bool = False,
-                 description_group: Optional[str] = None,
-                 description: Optional[str] = None):
+                 description_group: typing.Optional[str] = None,
+                 description: typing.Optional[str] = None):
         if description is None:
             description = "Validating JSONRPC 2.0 response schema"
         self._schema_file_name = schema_file_name
