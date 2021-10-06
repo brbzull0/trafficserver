@@ -23,7 +23,6 @@
 
 #include <cstdio>
 #include <atomic>
-#include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <string_view>
@@ -75,6 +74,8 @@
 #include "I_Machine.h"
 #include "HttpProxyServerMain.h"
 #include "shared/overridable_txn_vars.h"
+
+#include "rpc/jsonrpc/JsonRPC.h"
 
 #include "ts/ts.h"
 
@@ -10299,4 +10300,87 @@ TSHttpTxnPostBufferReaderGet(TSHttpTxn txnp)
   sdk_assert(sdk_sanity_check_txn(txnp) == TS_SUCCESS);
   HttpSM *sm = (HttpSM *)txnp;
   return (TSIOBufferReader)sm->get_postbuf_clone_reader();
+}
+
+namespace rpc
+{
+extern std::mutex g_rpcHandlingMutex;
+extern std::condition_variable g_rpcHandlingCompletion;
+extern ts::Rv<YAML::Node> g_rpcHandlerResponseData;
+extern bool g_rpcHandlerProccessingCompleted;
+extern bool g_rpcHandlerProcessingTimeOut;
+} // namespace rpc
+
+tsapi TSRPCProviderHandle
+TSRPCRegister(const char *provider_name, const char *yaml_version)
+{
+  sdk_assert(sdk_sanity_check_null_ptr(yaml_version) == TS_SUCCESS);
+  sdk_assert(sdk_sanity_check_null_ptr(provider_name) == TS_SUCCESS);
+
+  // We want to make sure that plugins are using the same yaml library version as we use internally. Plugins have to cast the TSYaml
+  // to the YAML::Node, in order for them to make sure the version compatibility they need to register here and make sure the
+  // version is ok.
+
+  // IMPORTANT: YAML library version should be available to query from here. This could
+  // be an issue if the user specify their own library and it's a different version
+  // This should be discussed, can we guarantee not changing the YAML version in minor
+  // releases can only change it in major versions.
+  if (std::string_view{yaml_version} != "0.6.3") {
+    return nullptr;
+  }
+
+  rpc::RPCRegistryInfo *info = new rpc::RPCRegistryInfo();
+  info->provider             = provider_name;
+
+  return (TSRPCProviderHandle)info;
+}
+
+tsapi TSReturnCode
+TSRPCRegisterMethodHandler(const char *name, TSRPCMethodCb callback, TSRPCProviderHandle info)
+{
+  if (!rpc::add_method_handler_from_plugin(
+        name,
+        [callback](std::string_view const &id, const YAML::Node &params) -> void {
+          std::string msgId{id.data(), id.size()};
+          callback(msgId.c_str(), (TSYaml)&params);
+        },
+        (const rpc::RPCRegistryInfo *)info)) {
+    return TS_ERROR;
+  }
+  return TS_SUCCESS;
+}
+
+tsapi TSReturnCode
+TSRPCRegisterNotificationHandler(const char *name, TSRPCNotificationCb callback, TSRPCProviderHandle info)
+{
+  if (!rpc::add_notification_handler(
+        name, [callback](const YAML::Node &params) -> void { callback((TSYaml)&params); }, (const rpc::RPCRegistryInfo *)info)) {
+    return TS_ERROR;
+  }
+  return TS_SUCCESS;
+}
+
+tsapi TSReturnCode
+TSRPCHandlerDone(TSYaml resp)
+{
+  Debug("rpc.api", ">> Handler seems to be done");
+  std::lock_guard<std::mutex> lock(rpc::g_rpcHandlingMutex);
+  auto data                             = *(YAML::Node *)resp;
+  rpc::g_rpcHandlerResponseData         = data;
+  rpc::g_rpcHandlerProccessingCompleted = true;
+  rpc::g_rpcHandlingCompletion.notify_one();
+  Debug("rpc.api", ">> all set.");
+  return TS_SUCCESS;
+}
+
+tsapi TSReturnCode
+TSRPCHandlerError(int ec, const char *descr)
+{
+  Debug("rpc.api", ">> Handler seems to be done with an error");
+  std::lock_guard<std::mutex> lock(rpc::g_rpcHandlingMutex);
+  rpc::g_rpcHandlerResponseData         = ts::Errata{}.push(1, ec, std::string{descr});
+  rpc::g_rpcHandlerProccessingCompleted = true;
+  rpc::g_rpcHandlingCompletion.notify_one();
+  Debug("rpc.api", ">> error  flagged.");
+  return TS_SUCCESS;
 }
