@@ -79,6 +79,27 @@ public:
   template <typename Func> bool add_method_handler(const std::string &name, Func &&call, const RPCRegistryInfo *info);
 
   ///
+  /// @brief Add new registered method handler(from a plugin scope) to the JSON RPC engine.
+  ///
+  /// Function to add a new RPC handler from a plugin context. This will be invoked by @c TSRPCRegisterMethodHandler. If you
+  /// register your handler by using this API then you have to  express the result of the processing by either calling
+  /// @c TSInternalHandlerDone or @c TSInternalHandlerError in case of an error.
+  /// When a function registered by this mechanism gets called, the response from the handler will not matter, instead we will rely
+  /// on what the @c TSInternalHandlerDone or @c TSInternalHandlerError have set.
+  ///
+  /// @note If you are not a plugin, do not call this function. Use @c add_method_handler instead.
+  ///
+  /// @tparam Func The callback function type. See @c PluginMethodHandlerSignature
+  /// @param name Name to be exposed by the RPC Engine, this should match the incoming request. i.e: If you register 'get_stats'
+  ///             then the incoming jsonrpc call should have this very same name in the 'method' field. .. {...'method':
+  ///             'get_stats'...} .
+  /// @param call The function handler.
+  /// @param info RPCRegistryInfo pointer.
+  /// @return bool Boolean flag. true if the callback was successfully added, false otherwise
+  ///
+  template <typename Func> bool add_method_handler_from_plugin(const std::string &name, Func &&call, const RPCRegistryInfo *info);
+
+  ///
   /// @brief Add new registered notification handler to the JSON RPC engine.
   ///
   /// @tparam Func The callback function type. See @c NotificationHandlerSignature
@@ -159,7 +180,7 @@ private:
       T cb; ///< Function handler (std::function<T>)
     };
 
-    struct InternalHandler; ///< fw declaration
+    class InternalHandler; ///< fw declaration
 
   public:
     Dispatcher();
@@ -247,6 +268,12 @@ bool
 JsonRPCManager::add_method_handler(const std::string &name, Handler &&call, const RPCRegistryInfo *info)
 {
   return _dispatcher.add_handler<Dispatcher::Method, Handler>(name, std::forward<Handler>(call), info);
+}
+template <typename Handler>
+bool
+JsonRPCManager::add_method_handler_from_plugin(const std::string &name, Handler &&call, const RPCRegistryInfo *info)
+{
+  return _dispatcher.add_handler<Dispatcher::PluginMethod, Handler>(name, std::forward<Handler>(call), info);
 }
 
 template <typename Handler>
