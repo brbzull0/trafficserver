@@ -26,6 +26,7 @@
 #include "tscore/BufferWriter.h"
 #include "rpc/jsonrpc/JsonRPC.h"
 
+ts::Rv<YAML::Node> server_get_status(std::string_view const &id, YAML::Node const &params);
 ts::Rv<YAML::Node> server_set_status(std::string_view const &id, YAML::Node const &params);
 
 inline void
@@ -214,6 +215,7 @@ HostStatus::HostStatus()
   pmgmt->registerMgmtCallback(MGMT_EVENT_HOST_STATUS_DOWN, &mgmt_host_status_down_callback);
 
   rpc::add_method_handler("admin_host_set_status", &server_set_status, &rpc::core_ats_rpc_service_provider_handle);
+  rpc::add_method_handler("admin_host_get_status", &server_get_status, &rpc::core_ats_rpc_service_provider_handle);
 }
 
 HostStatus::~HostStatus()
@@ -466,6 +468,13 @@ struct HostCmdInfo {
   int time{0};
 };
 
+struct Host {
+  std::string hostName;
+  std::string status;
+
+  Host(){};
+};
+
 } // namespace
 
 namespace YAML
@@ -513,7 +522,62 @@ template <> struct convert<HostCmdInfo> {
     return true;
   }
 };
+
+// encodes a vector of Host's to YAML
+template <> struct convert<std::vector<Host>> {
+  static Node
+  encode(std::vector<Host> const &hst)
+  {
+    YAML::Node node;
+    for (unsigned long i = 0; i < hst.size(); i++) {
+      YAML::Node n;
+      n["hostname"] = hst[i].hostName;
+      n["status"]   = hst[i].status;
+      node["hosts"].push_back(n);
+    }
+    return node;
+  }
+};
 } // namespace YAML
+
+ts::Rv<YAML::Node>
+server_get_status(std::string_view const &id, YAML::Node const &params)
+{
+  namespace err = rpc::handlers::errors;
+  ts::Rv<YAML::Node> resp;
+  std::vector<Host> statuses;
+  std::stringstream s;
+
+  try {
+    if (!params.IsNull()) {
+      auto cmdInfo = params.as<HostCmdInfo>();
+
+      for (auto const &name : cmdInfo.hosts) {
+        HostStatRec *host_rec = nullptr;
+        HostStatus &hs        = HostStatus::instance();
+        host_rec              = hs.getHostStatus(name);
+        if (host_rec == nullptr) {
+          Debug("host_statuses", "no record for %s was found", name.c_str());
+          continue;
+        } else {
+          Host host;
+          host.hostName = name;
+          s << host_rec;
+          host.status = s.str();
+          s.str(std::string());
+          statuses.push_back(host);
+        }
+      }
+      resp.result().push_back(statuses);
+    } else {
+      resp.errata().push(err::make_errata(err::Codes::SERVER, "Invalid input parameters, null"));
+    }
+  } catch (std::exception const &ex) {
+    Debug("host_statuses", "Got an error HostCmdInfo decoding: %s", ex.what());
+    resp.errata().push(err::make_errata(err::Codes::SERVER, "Error found during host status set: {}", ex.what()));
+  }
+  return resp;
+}
 
 ts::Rv<YAML::Node>
 server_set_status(std::string_view const &id, YAML::Node const &params)
