@@ -582,6 +582,7 @@ server_get_status(std::string_view const &id, YAML::Node const &params)
 ts::Rv<YAML::Node>
 server_set_status(std::string_view const &id, YAML::Node const &params)
 {
+  Debug("host_statuses", "id=%s", id.data());
   namespace err = rpc::handlers::errors;
   ts::Rv<YAML::Node> resp;
   try {
