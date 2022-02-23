@@ -130,19 +130,13 @@ struct HostSetStatusRequest : shared::rpc::ClientRequest {
 };
 
 struct HostGetStatusRequest : shared::rpc::ClientRequest {
-  using super = shared::rpc::ClientRequest;
-  std::vector<std::string> hosts;
-  static constexpr auto STATUS_PREFIX = "proxy.process.host_status";
-  HostGetStatusRequest() {}
+  using super  = shared::rpc::ClientRequest;
+  using Params = std::vector<std::string>;
+  HostGetStatusRequest(Params p) { super::params = std::move(p); }
   std::string
   get_method() const
   {
     return "admin_host_get_status";
-  }
-  void
-  emplace_rec(std::string s)
-  {
-    hosts.push_back(s);
   }
 };
 //------------------------------------------------------------------------------------------------------------------------------------
