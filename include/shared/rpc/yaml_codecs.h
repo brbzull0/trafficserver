@@ -122,6 +122,22 @@ template <> struct convert<shared::rpc::RecordLookUpResponse::RecordParamInfo> {
   }
 };
 //------------------------------------------------------------------------------------------------------------------------------------
+template <> struct convert<shared::rpc::HostStatusLookUpResponse> {
+  static bool
+  decode(const Node &node, shared::rpc::HostStatusLookUpResponse &rhs)
+  {
+    if (auto n = node["hosts"]) {
+      for (auto host : n) {
+        shared::rpc::Host hst;
+        hst.hostName = host["hostname"].as<std::string>();
+        hst.status   = host["status"].as<std::string>();
+        rhs.hosts.push_back(hst);
+      }
+    }
+    return true;
+  }
+};
+//------------------------------------------------------------------------------------------------------------------------------------
 template <> struct convert<shared::rpc::RecordLookUpResponse> {
   static bool
   decode(Node const &node, shared::rpc::RecordLookUpResponse &info)

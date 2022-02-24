@@ -25,6 +25,7 @@
 
 #include "tscore/BufferWriter.h"
 #include "rpc/jsonrpc/JsonRPC.h"
+#include "shared/rpc/RPCRequests.h"
 
 ts::Rv<YAML::Node> server_get_status(std::string_view const &id, YAML::Node const &params);
 ts::Rv<YAML::Node> server_set_status(std::string_view const &id, YAML::Node const &params);
@@ -467,14 +468,6 @@ struct HostCmdInfo {
   std::vector<std::string> hosts;
   int time{0};
 };
-
-struct Host {
-  std::string hostName;
-  std::string status;
-
-  Host(){};
-};
-
 } // namespace
 
 namespace YAML
@@ -524,9 +517,9 @@ template <> struct convert<HostCmdInfo> {
 };
 
 // encodes a vector of Host's to YAML
-template <> struct convert<std::vector<Host>> {
+template <> struct convert<std::vector<shared::rpc::Host>> {
   static Node
-  encode(std::vector<Host> const &hst)
+  encode(std::vector<shared::rpc::Host> const &hst)
   {
     YAML::Node node;
     for (unsigned long i = 0; i < hst.size(); i++) {
@@ -545,7 +538,7 @@ server_get_status(std::string_view const &id, YAML::Node const &params)
 {
   namespace err = rpc::handlers::errors;
   ts::Rv<YAML::Node> resp;
-  std::vector<Host> statuses;
+  std::vector<shared::rpc::Host> statuses;
   std::stringstream s;
 
   try {
@@ -560,12 +553,13 @@ server_get_status(std::string_view const &id, YAML::Node const &params)
           Debug("host_statuses", "no record for %s was found", name.c_str());
           continue;
         } else {
-          Host host;
+          shared::rpc::Host host;
           host.hostName = name;
-          s << host_rec;
+          s << *host_rec;
           host.status = s.str();
           s.str(std::string());
           statuses.push_back(host);
+          Debug("host_statuses", "hostname: %s, status: %s", host.hostName.c_str(), host.status.c_str());
         }
       }
       resp.result().push_back(statuses);

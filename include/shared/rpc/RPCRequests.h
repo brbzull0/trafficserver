@@ -145,6 +145,15 @@ struct RecordLookupRequest : ClientRequest {
   }
 };
 
+struct Host {
+  std::string hostName;
+  std::string status;
+};
+
+struct HostStatusLookUpResponse {
+  std::vector<Host> hosts;
+};
+
 struct RecordLookUpResponse {
   /// Response Records API  mapping utility classes.
   /// This utility class is used to hold the decoded response.

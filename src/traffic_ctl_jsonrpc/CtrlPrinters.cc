@@ -282,13 +282,16 @@ RecordDescribePrinter::write_output_pretty(shared::rpc::RecordLookUpResponse con
 void
 GetHostStatusPrinter::write_output(YAML::Node const &result)
 {
-  auto response = result.as<shared::rpc::RecordLookUpResponse>();
-  for (auto &&recordInfo : response.recordList) {
-    std::cout << recordInfo.name << " " << recordInfo.currentValue << '\n';
+  auto response = result.as<shared::rpc::HostStatusLookUpResponse>();
+
+  for (auto &&host : response.hosts) {
+    std::cout << host.hostName << " " << host.status << '\n';
   }
+  /*
   for (auto &&e : response.errorList) {
     std::cout << "Failed  to fetch " << e.recordName << '\n';
   }
+  */
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------
