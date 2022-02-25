@@ -517,17 +517,17 @@ template <> struct convert<HostCmdInfo> {
 };
 
 // encodes a vector of Host's to YAML
-template <> struct convert<std::vector<shared::rpc::Host>> {
+template <> struct convert<shared::rpc::Host> {
   static Node
-  encode(std::vector<shared::rpc::Host> const &hst)
+  encode(shared::rpc::Host const &hst)
   {
     YAML::Node node;
-    for (unsigned long i = 0; i < hst.size(); i++) {
-      YAML::Node n;
-      n["hostname"] = hst[i].hostName;
-      n["status"]   = hst[i].status;
-      node["hosts"].push_back(n);
-    }
+    // for (unsigned long i = 0; i < hst.size(); i++) {
+    // YAML::Node n;
+    node["hostname"] = hst.hostName;
+    node["status"]   = hst.status;
+    // node["hosts"].push_back(n);
+    // }
     return node;
   }
 };
@@ -537,8 +537,11 @@ ts::Rv<YAML::Node>
 server_get_status(std::string_view const &id, YAML::Node const &params)
 {
   namespace err = rpc::handlers::errors;
+
   ts::Rv<YAML::Node> resp;
-  std::vector<shared::rpc::Host> statuses;
+  // We define this as sequence so we make sure that if there is no host populated, then we will respond with an empty list:
+  // .. "result": [], ..
+  YAML::Node statuses{YAML::NodeType::Sequence};
   std::stringstream s;
 
   try {
@@ -562,7 +565,6 @@ server_get_status(std::string_view const &id, YAML::Node const &params)
           Debug("host_statuses", "hostname: %s, status: %s", host.hostName.c_str(), host.status.c_str());
         }
       }
-      resp.result().push_back(statuses);
     } else {
       resp.errata().push(err::make_errata(err::Codes::SERVER, "Invalid input parameters, null"));
     }
@@ -570,6 +572,8 @@ server_get_status(std::string_view const &id, YAML::Node const &params)
     Debug("host_statuses", "Got an error decoding the parameters: %s", ex.what());
     resp.errata().push(err::make_errata(err::Codes::SERVER, "Error found during host status set: {}", ex.what()));
   }
+
+  resp.result()["hosts"] = statuses;
   return resp;
 }
 
