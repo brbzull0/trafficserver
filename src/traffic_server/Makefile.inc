@@ -59,6 +59,7 @@ traffic_server_traffic_server_SOURCES = \
 	traffic_server/RpcAdminPubHandlers.cc \
 	traffic_server/RpcAdminPubHandlers.h \
 	shared/overridable_txn_vars.cc \
+  shared/RecordsConfig.cc \
 	traffic_server/traffic_server.cc
 
 if BUILD_TESTS

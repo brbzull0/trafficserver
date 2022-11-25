@@ -38,7 +38,7 @@
 
 #include "MgmtUtils.h"
 // Needs LibRecordsConfigInit()
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 
 #define LOG_FILENAME_SIZE 255
 
@@ -100,7 +100,7 @@ initialize_process_manager()
   ink_assert(diags());
 
   RecProcessInit(RECM_STAND_ALONE, diags());
-  LibRecordsConfigInit();
+  ts::LibRecordsConfigInit();
 
   RecProcessInitMessage(RECM_STAND_ALONE);
 

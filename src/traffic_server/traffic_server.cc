@@ -76,7 +76,7 @@ extern "C" int plock(int);
 #include "P_Cache.h"
 #include "tscore/I_Layout.h"
 #include "I_Machine.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "records/I_RecProcess.h"
 #include "Transform.h"
 #include "ProxyConfig.h"
@@ -385,7 +385,7 @@ public:
   {
     SET_HANDLER(&DiagsLogContinuation::periodic);
 
-    char *configured_traffic_out_name(REC_ConfigReadString("proxy.config.output.logfile"));
+    char *configured_traffic_out_name(REC_ConfigReadString("proxy.config.output.logfile.name"));
     traffic_out_name = std::string(configured_traffic_out_name);
     ats_free(configured_traffic_out_name);
   }
@@ -671,7 +671,7 @@ initialize_process_manager()
   mgmt_use_syslog();
 
   RecProcessInit(RECM_STAND_ALONE, diags());
-  LibRecordsConfigInit();
+  ts::LibRecordsConfigInit();
 
   RecProcessInitMessage(RECM_STAND_ALONE);
   check_config_directories();
@@ -955,7 +955,7 @@ cmd_verify(char * /* cmd ATS_UNUSED */)
     fprintf(stderr, "INFO: Successfully loaded %s\n\n", ts::filename::REMAP);
   }
 
-  if (RecReadConfigFile() != REC_ERR_OKAY) {
+  if (auto ret = RecReadYamlConfigFile(); !ret.empty()) {
     exitStatus |= (1 << 1);
     fprintf(stderr, "ERROR: Failed to load %s, exitStatus %d\n\n", ts::filename::RECORDS, exitStatus);
   } else {
@@ -1610,7 +1610,7 @@ adjust_num_of_net_threads(int nthreads)
   int nth_auto_config    = 1;
   int num_of_threads_tmp = 1;
 
-  REC_ReadConfigInteger(nth_auto_config, "proxy.config.exec_thread.autoconfig");
+  REC_ReadConfigInteger(nth_auto_config, "proxy.config.exec_thread.autoconfig.enabled");
 
   Debug("threads", "initial number of net threads is %d", nthreads);
   Debug("threads", "net threads auto-configuration %s", nth_auto_config ? "enabled" : "disabled");

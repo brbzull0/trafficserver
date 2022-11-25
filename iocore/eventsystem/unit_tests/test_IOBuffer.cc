@@ -27,7 +27,7 @@
 #include "tscore/I_Layout.h"
 
 #include "I_EventSystem.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 
 #include "diags.i"
 
@@ -340,7 +340,7 @@ struct EventProcessorListener : Catch::TestEventListenerBase {
     init_diags("", nullptr);
     RecProcessInit(RECM_STAND_ALONE);
 
-    LibRecordsConfigInit();
+    ts::LibRecordsConfigInit();
 
     ink_event_system_init(EVENT_SYSTEM_MODULE_PUBLIC_VERSION);
     eventProcessor.start(TEST_THREADS);

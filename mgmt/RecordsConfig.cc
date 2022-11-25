@@ -23,19 +23,19 @@
 
 #include "tscore/ink_config.h"
 #include "tscore/Filenames.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 
 #if TS_USE_REMOTE_UNWINDING
 #define MGMT_CRASHLOG_HELPER "traffic_crashlog"
 #else
 #define MGMT_CRASHLOG_HELPER NULL
 #endif
+asdasdasd
+  //-------------------------------------------------------------------------
+  // RecordsConfig
+  //-------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------
-// RecordsConfig
-//-------------------------------------------------------------------------
-
-// clang-format off
+  // clang-format off
 static const RecordElement RecordsConfig[] =
 {
   //##############################################################################
@@ -105,7 +105,7 @@ static const RecordElement RecordsConfig[] =
   ,
   // Traffic Server Execution threads configuration
   // By default Traffic Server set number of execution threads equal to total CPUs
-  {RECT_CONFIG, "proxy.config.exec_thread.autoconfig", RECD_INT, "1", RECU_RESTART_TS, RR_NULL, RECC_INT, "[0-1]", RECA_READ_ONLY}
+  {RECT_CONFIG, "proxy.config.exec_thread.autoconfig.enabled", RECD_INT, "1", RECU_RESTART_TS, RR_NULL, RECC_INT, "[0-1]", RECA_READ_ONLY}
   ,
   {RECT_CONFIG, "proxy.config.exec_thread.autoconfig.scale", RECD_FLOAT, "1.0", RECU_RESTART_TS, RR_NULL, RECC_NULL, nullptr, RECA_READ_ONLY}
   ,

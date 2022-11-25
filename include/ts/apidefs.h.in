@@ -1496,6 +1496,17 @@ typedef struct TSRPCHandlerOptions_s {
   } auth;
 } TSRPCHandlerOptions;
 
+///
+/// @brief Mixin between a yaml node and a legac configuration details.
+///
+/// This is used to interact with the records.yaml like configuration files.
+///
+typedef struct TSYAMLCfgFieldData_s {
+  const char *field_name;  // null terminated
+  const char *record_name; // null terminated
+  TSYaml value_node;
+} TSYAMLRecCfgFieldData;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

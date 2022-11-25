@@ -29,6 +29,8 @@ AM_CPPFLAGS += \
 	-I$(abs_top_srcdir)/mgmt/utils \
 	-I$(abs_top_srcdir)/include \
 	-I$(abs_top_srcdir)/lib \
+	-I$(abs_top_srcdir)/ \
+	@YAMLCPP_INCLUDES@\
 	@SWOC_INCLUDES@\
 	$(TS_INCLUDES)
 
@@ -46,6 +48,7 @@ librecords_COMMON = \
 	P_RecMessage.h \
 	P_RecUtils.h \
 	RecConfigParse.cc \
+	RecYAMLDecoder.cc \
 	RecCore.cc \
 	RecDebug.cc \
 	RecFile.cc \
@@ -53,13 +56,38 @@ librecords_COMMON = \
 	RecMessage.cc \
 	RecMutex.cc \
 	RecRawStats.cc \
-	RecUtils.cc
+	RecUtils.cc \
+	$(shared_recordsconfig_SOURCES)
 
 librecords_p_a_SOURCES = \
 	$(librecords_COMMON) \
 	I_RecProcess.h \
 	P_RecProcess.h \
 	RecProcess.cc
+
+# distclean
+# This is a workaround to deal with a newer version of automake, apparently there
+# is an issue when including subdir-objects and sources outside of subtree.
+# If we include a file from another subdir as is(was) the case of overridable_txn,
+# then the distclean will try to remove the file from the original folder as well
+# from here. To overcome this issue, we create a file here that will be used
+# for building.
+# We have also added a proper cleaning for it.
+shared_recordsconfig_SOURCES = RecordsConfig.cc
+nodist_librecords_p_a_SOURCES = $(shared_recordsconfig_SOURCES)
+
+# This may not be needed. Ok for now.
+CLEANDIST = $(shared_recordsconfig_SOURCES)
+
+clean-local:
+	rm -f $(shared_recordsconfig_SOURCES)
+
+distclean-local:
+	rm -f $(shared_recordsconfig_SOURCES)
+
+# Build with this file instead of the original one.
+$(shared_recordsconfig_SOURCES):
+	echo "#include \"$(top_builddir)/src/shared/$@\"" >$@
 
 TESTS = $(check_PROGRAMS)
 

@@ -70,9 +70,10 @@
 #include "I_Tasks.h"
 
 #include "P_OCSPStapling.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "records/I_RecDefs.h"
 #include "records/I_RecCore.h"
+#include "records/RecYAMLDecoder.h"
 #include "I_Machine.h"
 #include "HttpProxyServerMain.h"
 #include "shared/overridable_txn_vars.h"
@@ -10422,4 +10423,20 @@ TSRPCHandlerError(int ec, const char *descr, size_t descr_len)
   rpc::g_rpcHandlingCompletion.notify_one();
   Debug("rpc.api", ">> error  flagged.");
   return TS_SUCCESS;
+}
+
+TSReturnCode
+TSRecYAMLConfigFileParse(const char *path, TSYAMLRecNodeHandler handler, void *data)
+{
+  auto ret = RecYAMLConfigFileParse(path, [handler, data](const CfgNode &field, swoc::Errata &) -> void {
+    TSYAMLRecCfgFieldData cfg;
+    auto const &field_str = field.node.as<std::string>();
+    cfg.field_name        = field_str.c_str();
+    cfg.record_name       = field.get_record_name().data();
+    cfg.value_node        = (TSYaml)&field.value_node;
+    handler(&cfg, data);
+  });
+  // I think we should report some error descriptio to the caller. The errata may contain some
+  // important information about the handling.
+  return ret.empty() ? TS_SUCCESS : TS_ERROR;
 }

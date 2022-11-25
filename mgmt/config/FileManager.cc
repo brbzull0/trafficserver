@@ -53,7 +53,7 @@ handle_file_reload(std::string const &fileName, std::string const &configName)
   ts::Errata ret;
   // TODO: make sure records holds the name after change, if not we should change it.
   if (fileName == ts::filename::RECORDS) {
-    if (RecReadConfigFile() == REC_ERR_OKAY) {
+    if (auto zret = RecReadYamlConfigFile(); zret) {
       RecConfigWarnIfUnregistered();
     } else {
       std::string str;

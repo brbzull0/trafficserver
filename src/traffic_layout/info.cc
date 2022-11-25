@@ -27,7 +27,7 @@
 #include "tscore/Filenames.h"
 #include "tscore/BufferWriter.h"
 #include "records/I_RecProcess.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "info.h"
 
 #if TS_USE_HWLOC
@@ -150,7 +150,7 @@ void
 produce_layout(bool json)
 {
   RecProcessInit(RECM_STAND_ALONE, nullptr /* diags */);
-  LibRecordsConfigInit();
+  ts::LibRecordsConfigInit();
 
   if (json) {
     printf("{\n");

@@ -20,9 +20,8 @@
 SUBDIRS = utils api config rpc
 
 # Decoder ring:
-# 	libmgmt_c.la 	Configuration records (defaults).
 # 	libmgmt_p.la	libmgmt for Process Manager applications (everything else)
-noinst_LTLIBRARIES = libmgmt_c.la libmgmt_p.la
+noinst_LTLIBRARIES = libmgmt_p.la
 
 AM_CPPFLAGS += \
 	$(iocore_include_dirs) \
@@ -36,9 +35,9 @@ AM_CPPFLAGS += \
 	@YAMLCPP_INCLUDES@ \
 	$(TS_INCLUDES)
 
-libmgmt_c_la_SOURCES = \
-	RecordsConfig.cc \
-	RecordsConfig.h
+# libmgmt_c_la_SOURCES = \
+# 	RecordsConfig.cc \
+# 	RecordsConfig.h
 
 libmgmt_COMMON = \
 	MgmtDefs.h \
@@ -52,7 +51,6 @@ libmgmt_p_la_SOURCES = \
 	YamlCfg.h
 
 libmgmt_p_la_LIBADD = \
-	libmgmt_c.la \
 	$(top_builddir)/mgmt/utils/libutils_p.la
 
 include $(top_srcdir)/build/tidy.mk

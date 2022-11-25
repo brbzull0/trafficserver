@@ -28,7 +28,7 @@
 #include "tscore/I_Layout.h"
 #include "tscore/ink_syslog.h"
 #include "records/I_RecProcess.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "tscore/BaseLogFile.h"
 #include "tscore/runroot.h"
 
@@ -165,7 +165,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   runroot_handler(argv);
   Layout::create();
   RecProcessInit(RECM_STAND_ALONE, nullptr /* diags */);
-  LibRecordsConfigInit();
+  ts::LibRecordsConfigInit();
 
   if (syslog_mode) {
     RecString name;

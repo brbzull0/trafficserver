@@ -30,7 +30,7 @@
 #include "tscore/Diags.h"
 
 #include "I_EventSystem.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 
 #include "QUICConfig.h"
 
@@ -50,7 +50,7 @@ struct EventProcessorListener : Catch::TestEventListenerBase {
 
     Layout::create();
     RecProcessInit(RECM_STAND_ALONE);
-    LibRecordsConfigInit();
+    ts::LibRecordsConfigInit();
 
     QUICConfig::startup();
 

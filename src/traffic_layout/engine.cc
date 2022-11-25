@@ -29,7 +29,7 @@
 #include "tscore/ink_error.h"
 #include "tscore/ink_defs.h"
 #include "records/I_RecProcess.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "engine.h"
 #include "file_system.h"
 #include "info.h"
@@ -662,7 +662,7 @@ LayoutEngine::verify_runroot()
     user = arguments.get("with-user").value();
   } else {
     RecProcessInit(RECM_STAND_ALONE, nullptr /* diags */);
-    LibRecordsConfigInit();
+    ts::LibRecordsConfigInit();
     if (RecGetRecordString("proxy.config.admin.user_id", user_buf, sizeof(user_buf)) != 0 || strlen(user_buf) == 0) {
       user = user_buf;
     } else {

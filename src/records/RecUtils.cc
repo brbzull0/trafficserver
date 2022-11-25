@@ -24,7 +24,7 @@
 #include "tscore/ink_platform.h"
 #include "tscore/ink_memory.h"
 #include "tscore/ParseRules.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "records/P_RecUtils.h"
 #include "records/P_RecCore.h"
 

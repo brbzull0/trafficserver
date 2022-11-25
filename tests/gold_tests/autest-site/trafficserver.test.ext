@@ -18,11 +18,36 @@
 
 from __future__ import print_function
 import os
+import yaml
+
 from ports import get_port
+
+Key_To_Field_name = {
+    # as it can have a numeric value [0-2]
+    'proxy.config.output.logfile': 'filename', 'proxy.config.exec_thread.autoconfig': 'enabled', 'proxy.config.hostdb': 'enabled', 'proxy.config.tunnel.prewarm': 'enabled', 'proxy.config.ssl.origin_session_cache': 'enabled', 'proxy.config.ssl.session_cache': 'value', 'proxy.config.ssl.TLSv1_3': 'enabled', 'proxy.config.ssl.client.TLSv1_3': 'enabled'
+}
 
 
 def make_id(s):
+    if s == "records.yaml":
+        '''
+        Keep legacy name to be used. This is mainly to autest changes.
+        We can change this once the yaml change is introduced.
+        '''
+        s = "records.config"
+
     return s.replace(".", "_").replace('-', '_')
+
+
+def get_typename(s):
+    file_ext = os.path.splitext(s)[1]
+    typename = "ats:config"
+
+    # We want the file to be handled as yaml file so we get the benefits of it.
+    if file_ext == ".yaml" or file_ext == ".yml":
+        typename = "ats:config:yaml"
+
+    return typename
 
 
 # A mapping from log type to the log name. 'stdout' and 'stderr' are handled
@@ -233,12 +258,12 @@ def MakeATSProcess(obj, name, command='traffic_server', select_ports=True,
     # config files
     def MakeConfigFile(self, fname):
         tmpname = os.path.join(config_dir, fname)
-        return self.File(tmpname, id=make_id(fname), typename="ats:config")
+        return self.File(tmpname, id=make_id(fname), typename=get_typename(fname))
 
     AddMethodToInstance(p.Disk, MakeConfigFile)
 
     # "Core" config files are pre-defined as variables.
-    fname = "records.config"
+    fname = "records.yaml"
     tmpname = os.path.join(config_dir, fname)
     p.Disk.File(tmpname, id=make_id(fname), typename="ats:config:records")
 
@@ -462,24 +487,78 @@ class Config(File):
         self.content += line
 
 
-class RecordsConfig(Config, dict):
-    '''
-    Create a "dict" representation of records.config
+class YAMLFile(File):
+    def __init__(self,
+                 runable,
+                 name,
+                 exists=None,
+                 size=None,
+                 content_tester=None,
+                 execute=False,
+                 runtime=True,
+                 content=None,
+                 root_tag=None):
 
-    This can be accessed as a multi-level dictionary
+        super(YAMLFile, self).__init__(
+            runable,
+            name,
+            exists=None,
+            size=None,
+            content_tester=None,
+            execute=False,
+            runtime=True)
+        self.__root_tag = root_tag
+        self.__content = {}
 
-    such as:
-    rc['CONFIG']['proxy.config.log.hostname']
-    '''
+        self.WriteCustomOn(self._do_write)
 
-    reverse_kind_map = {
-        str: 'STRING',
-        int: 'INT',
-        float: 'FLOAT',
-    }
+    def _do_write(self, name):
+        host.WriteVerbosef('ats-config-file', "Writing out file {0}", name)
 
-    line_template = 'CONFIG {name} {kind} {val}\n'
+        def float_representer(dumper, value):
+            return dumper.represent_scalar(u'tag:yaml.org,2002:float', str(value), style="'")
 
+        def int_representer(dumper, value):
+            return dumper.represent_scalar(u'tag:yaml.org,2002:int', str(value), style="'")
+
+        def bool_representer(dumper, value):
+            return dumper.represent_scalar(u'tag:yaml.org,2002:bool', str(value), style="'")
+
+        if len(self.__content) > 0:
+            with open(name, 'w') as f:
+                yaml.add_representer(float, float_representer)
+                yaml.add_representer(int, int_representer)
+                yaml.add_representer(bool, bool_representer)
+                updated_content = {}
+                if self.__root_tag:
+                    updated_content[self.__root_tag] = self.__content
+                else:
+                    updated_content = self.__content
+
+                yaml.dump(updated_content, f)
+
+        return (True,
+                "Writing config file {0}".format(os.path.split(self.Name)[-1]),
+                "Success")
+
+    def __update(self, content):
+        for key, value in content.items():
+            if key in self.__content:
+                self.__content[key].update(value)
+            else:
+                self.__content[key] = value
+
+    def update(self, content):
+        data = {}
+        if isinstance(content, str):  # from new style
+            data = yaml.load(content, Loader=yaml.Loader)
+        else:
+            data = content  # Already an object.
+
+        self.__update(data)
+
+
+class RecordsYAML(YAMLFile):
     def __init__(self,
                  runable,
                  name,
@@ -488,30 +567,54 @@ class RecordsConfig(Config, dict):
                  content_tester=None,
                  execute=False,
                  runtime=True):
-        super(RecordsConfig, self).__init__(
+        super(RecordsYAML, self).__init__(
             runable,
             name,
-            exists=None,
-            size=None,
-            content_tester=None,
-            execute=False,
-            runtime=True)
-        self.WriteCustomOn(self._do_write)
+            exists,
+            size,
+            content_tester,
+            execute,
+            runtime,
+            root_tag="ts")
 
-    def _do_write(self, name):
-        host.WriteVerbosef('ats-config-file', "Writing out file {0}", name)
-        if len(self) > 0:
-            with open(name, 'w') as f:
-                for name, val in self.items():
-                    f.write(
-                        self.line_template.format(
-                            name=name,
-                            kind=self.reverse_kind_map[type(val)],
-                            val=val)
-                    )
-        return (True,
-                "Writing config file {0}".format(os.path.split(self.Name)[-1]),
-                "Success")
+    def _make_obj_from_legacy_record(self, config, var, value):
+        key = ''
+        index = var.find('.')
+        if index < 0:  # last part
+            config[var] = value
+        else:
+            key = var[:index]
+            if key not in config:
+                config[key] = {}
+
+            self._make_obj_from_legacy_record(config[key], var[index + 1:], value)
+
+    def __legacy_update(self, obj):
+        config = {}
+        for name, value in obj.items():
+            ori_name = name
+            if name.startswith("proxy.config."):
+                name = name[len("proxy.config."):]
+            elif name.startswith("local.config."):
+                name = name[len("local.config."):]
+            # Maybe an non standard variable name.
+
+            self._make_obj_from_legacy_record(config, name, value)
+
+        super(RecordsYAML, self).update(config)
+
+    def update(self, data):
+        if isinstance(data, dict):
+            '''
+            If the data is already parsed or it's (more likely) a legacy objects
+            we still supports it.
+            '''
+            self.__legacy_update(data)
+        else:
+            '''
+            We support plain YAML to be passed. Base class will load from the yaml parser.
+            '''
+            super(RecordsYAML, self).update(data)
 
 
 ##########################################################################
@@ -537,7 +640,8 @@ def addSSLFileFromDefaultTestFolder(self, filename):
 
 
 RegisterFileType(Config, "ats:config")
-RegisterFileType(RecordsConfig, "ats:config:records")
+RegisterFileType(YAMLFile, "ats:config:yaml")
+RegisterFileType(RecordsYAML, "ats:config:records")
 ExtendTestRun(chownForATSProcess, name="ChownForATSProcess")
 ExtendTest(MakeATSProcess, name="MakeATSProcess")
 ExtendTestRun(MakeATSProcess, name="MakeATSProcess")

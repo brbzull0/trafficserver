@@ -24,9 +24,9 @@
 #pragma once
 
 #include "records/P_RecCore.h"
-
-// This is to manage the librecords table sizes. Not awesome, but better than the earlier recompiling of ATS requirement...
-extern int max_records_entries;
+asdasdsda
+  // This is to manage the librecords table sizes. Not awesome, but better than the earlier recompiling of ATS requirement...
+  extern int max_records_entries;
 
 enum RecordRequiredType {
   RR_NULL,    // config is _not_ required to be defined in records.config
@@ -45,8 +45,7 @@ struct RecordElement {
   const char *regex;
   RecAccessT access; // access level of the record
 };
-
-typedef void (*RecordElementCallback)(const RecordElement *, void *);
+asads typedef void (*RecordElementCallback)(const RecordElement *, void *);
 void RecordsConfigIterate(RecordElementCallback, void *);
 
 void LibRecordsConfigInit(); // initializes RecordsConfigIndex

@@ -54,11 +54,24 @@ ts.Disk.remap_config.AddLines({
 
 ts.Disk.plugin_config.AddLine('tslua.so {}/global.lua'.format(Test.RunDirectory))
 
-ts.Disk.records_config.update({
-    'proxy.config.diags.debug.enabled': 1,
-    'proxy.config.diags.debug.tags': 'ts_lua',
-    'proxy.config.plugin.lua.max_states': 4,
-})
+# ts.Disk.records_config.update({
+#     'proxy.config.diags.debug.enabled': 1,
+#     'proxy.config.diags.debug.tags': 'ts_lua',
+#     'proxy.config.plugin.lua.max_states': 4,
+# })
+
+ts.Disk.records_config.update(
+    '''
+diags:
+    debug:
+      enabled: 1
+      tags: 'ts_lua'
+plugin:
+    lua:
+      max_states: 4
+'''
+)
+
 
 curl_and_args = 'curl -s -D /dev/stdout -o /dev/stderr -x localhost:{} '.format(ts.Variables.port)
 

@@ -26,7 +26,7 @@
 #include "tscore/I_Layout.h"
 #include "tscore/I_Version.h"
 
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "URL.h"
 #include "MIME.h"
 #include "HTTP.h"
@@ -85,7 +85,7 @@ main(int argc, const char **argv)
 
   init_diags(config.debug_tags, nullptr);
   RecProcessInit(RECM_STAND_ALONE);
-  LibRecordsConfigInit();
+  ts::LibRecordsConfigInit();
 
   Debug("quic_client", "Load configs from %s", RecConfigReadConfigDir().c_str());
 

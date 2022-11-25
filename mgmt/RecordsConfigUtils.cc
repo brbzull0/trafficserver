@@ -22,14 +22,14 @@
  */
 
 #include "tscore/ink_config.h"
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 
 //-------------------------------------------------------------------------
 // LibRecordsConfigInit
 //-------------------------------------------------------------------------
 
 static void
-initialize_record(const RecordElement *record, void *)
+initialize_record(const ts::RecordElement *record, void *)
 {
   RecInt tempInt         = 0;
   RecFloat tempFloat     = 0.0;
@@ -112,8 +112,11 @@ initialize_record(const RecordElement *record, void *)
   }
 }
 
+namespace ts
+{
 void
 LibRecordsConfigInit()
 {
-  RecordsConfigIterate(initialize_record, nullptr);
+  ts::RecordsConfigIterate(initialize_record, nullptr);
 }
+} // namespace ts

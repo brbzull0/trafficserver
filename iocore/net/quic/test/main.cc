@@ -29,7 +29,7 @@
 #include "tscore/I_Layout.h"
 #include "tscore/Diags.h"
 
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "QUICGlobals.h"
 #include "QUICConfig.h"
 
@@ -47,7 +47,7 @@ struct EventProcessorListener : Catch::TestEventListenerBase {
 
     Layout::create();
     RecProcessInit(RECM_STAND_ALONE);
-    LibRecordsConfigInit();
+    ts::LibRecordsConfigInit();
 
     QUICConfig::startup();
     QUIC::init();

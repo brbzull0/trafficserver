@@ -29,7 +29,7 @@
 #include "tscore/I_Layout.h"
 #include "tscore/Diags.h"
 
-#include "RecordsConfig.h"
+#include "shared/RecordsConfig.h"
 #include "Http3Config.h"
 
 #define TEST_THREADS 1
@@ -48,7 +48,7 @@ struct EventProcessorListener : Catch::TestEventListenerBase {
 
     Layout::create();
     RecProcessInit(RECM_STAND_ALONE);
-    LibRecordsConfigInit();
+    ts::LibRecordsConfigInit();
 
     ink_event_system_init(EVENT_SYSTEM_MODULE_PUBLIC_VERSION);
     eventProcessor.start(TEST_THREADS);
