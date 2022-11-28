@@ -50,3 +50,4 @@ typedef void (*RecordElementCallback)(const RecordElement *, void *);
 void RecordsConfigIterate(RecordElementCallback, void *);
 
 void LibRecordsConfigInit(); // initializes RecordsConfigIndex
+const RecordElement *GetRecordElementByName(std::string_view name);
