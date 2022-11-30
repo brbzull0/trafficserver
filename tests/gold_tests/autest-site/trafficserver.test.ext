@@ -480,6 +480,7 @@ class YAMLFile(File):
     '''
     Class representing a YAML config file.
     '''
+
     def __init__(self,
                  runable,
                  name,
