@@ -126,11 +126,11 @@ def save_to_file(filename, is_json, data):
     def float_representer(dumper, value):
         return dumper.represent_scalar(u'tag:yaml.org,2002:float', str(value), style="'")
 
-    def int_representer(dumper, value):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:int', str(value), style="'")
+    # def int_representer(dumper, value):
+    #     return dumper.represent_scalar(u'tag:yaml.org,2002:int', str(value), style="'")
 
-    def bool_representer(dumper, value):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:bool', str(value), style="'")
+    # def bool_representer(dumper, value):
+    #     return dumper.represent_scalar(u'tag:yaml.org,2002:bool', str(value), style="'")
 
     def null_representer(dumper, value):
         return dumper.represent_scalar(u'tag:yaml.org,2002:null', str(value), style="'")
@@ -140,8 +140,8 @@ def save_to_file(filename, is_json, data):
             json.dump(data, f, indent=4, sort_keys=True)
         else:
             yaml.add_representer(float, float_representer)
-            yaml.add_representer(int, int_representer)
-            yaml.add_representer(bool, bool_representer)
+            # yaml.add_representer(int, int_representer)
+            # yaml.add_representer(bool, bool_representer)
             yaml.add_representer(None, null_representer)
             yaml.dump(data, f)
 
@@ -159,13 +159,20 @@ def print_summary():
 
 
 def get_value(type, value):
+    def have_multipliers(value, mps):
+        for m in mps:
+            if value.endswith(m):
+                return True
+
+        return False
+
     if value == 'nullptr' or value == 'NULL':
         return None
 
     if type == 'FLOAT':
         return float(value)
     elif type == 'INT':
-        if value.startswith('0x'):
+        if value.startswith('0x') or have_multipliers(value, ['K', 'M', 'G', 'T']):
             return str(value)
         else:
             return int(value)
