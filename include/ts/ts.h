@@ -2758,6 +2758,26 @@ tsapi bool TSHttpTxnCntlGet(TSHttpTxn txnp, TSHttpCntlType ctrl);
 tsapi TSReturnCode TSHttpTxnCntlSet(TSHttpTxn txnp, TSHttpCntlType ctrl, bool data);
 
 /**
+ * @brief Check the passed YAML-CPP library version against the used(built) in core.
+ *
+ * @note This API can be used in combination with @c TSYAMLVersionGet in case of an error, or simply
+ *       call the last one and run the check yourself.
+ *
+ * @param yamlcpp_lib_version a string with the yamlcpp library version.
+ * @param yamlcpp_lib_len The length of the yamlcpp_lib_len string.
+ * @return TS_ERROR if the yamlcpp_lib_version was not set, or the yamlcpp version does not match with
+ * the one used internally in TS_SUCCESS
+ */
+tsapi TSReturnCode TSYAMLCompatibilityCheck(const char *yamlcpp_lib_version, size_t yamlcpp_lib_len);
+
+/**
+ * @brief Get the YAML-CPP library version used in core.
+ *
+ * @return The YAML-CPP library version used in core.
+ */
+tsapi const char *TSYAMLCoreVersionGet(void);
+
+/**
  * JSONRPC callback signature for method calls.
  */
 typedef void (*TSRPCMethodCb)(const char *id, TSYaml params);

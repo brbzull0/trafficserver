@@ -9219,3 +9219,41 @@ REGRESSION_TEST(SDK_API_TSStatCreate)(RegressionTest *test, int level, int *psta
 
   box.check(expected >= value, "TSStatIntGet(%s) gave %" PRId64 ", expected at least %" PRId64, name, value, expected);
 }
+
+REGRESSION_TEST(SDK_API_TSYAML)(RegressionTest *test, int level, int *pstatus)
+{
+  TestBox box(test, pstatus);
+
+  box = REGRESSION_TEST_PASSED;
+
+  std::string yaml_version{YAMLCPP_LIB_VERSION};
+  std::string_view core_yaml_version{TSYAMLCoreVersionGet()};
+
+  if (core_yaml_version != yaml_version) {
+    SDK_RPRINT(test, "TSYAMLCoreVersionGet", "TestCase1", TC_FAIL, "Invalid yaml version.");
+    *pstatus = REGRESSION_TEST_FAILED;
+    return;
+  } else {
+    SDK_RPRINT(test, "TSYAMLCoreVersionGet", "TestCase1", TC_PASS, "ok");
+  }
+
+  if (TSYAMLCompatibilityCheck(yaml_version.c_str(), yaml_version.size()) != TS_SUCCESS) {
+    SDK_RPRINT(test, "TSYAMLCompatibilityCheck", "TestCase2", TC_FAIL,
+               "Compatibility check failed. Shoulnd't fail as the test is using the core version");
+    *pstatus = REGRESSION_TEST_FAILED;
+    return;
+  } else {
+    SDK_RPRINT(test, "TSYAMLCompatibilityCheck", "TestCase2", TC_PASS, "ok");
+  }
+
+  std::string some_plugin_yaml_version{"0.6.3"};
+  if (TSYAMLCompatibilityCheck(some_plugin_yaml_version.c_str(), some_plugin_yaml_version.size()) != TS_ERROR) {
+    SDK_RPRINT(test, "TSYAMLCompatibilityCheck", "TestCase3", TC_FAIL, "Compatibility check OK, it shouldn't be ok.");
+    *pstatus = REGRESSION_TEST_FAILED;
+    return;
+  } else {
+    SDK_RPRINT(test, "TSYAMLCompatibilityCheck", "TestCase3", TC_PASS, "ok");
+  }
+
+  *pstatus = REGRESSION_TEST_PASSED;
+}

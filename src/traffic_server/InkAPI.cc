@@ -10340,6 +10340,36 @@ TSDbgCtlCreate(char const *tag)
   return DbgCtl::_get_ptr(tag);
 }
 
+namespace
+{
+TSReturnCode
+yamlcpp_version_check(std::string_view version)
+{
+  // We want to make sure that plugins are using the same yaml library version as we use internally. Plugins have to cast the TSYaml
+  // to the YAML::Node, in order for them to make sure the version compatibility they need to register here and make sure the
+  // version is the same.
+  if (version != YAMLCPP_LIB_VERSION) {
+    return TS_ERROR;
+  }
+
+  return TS_SUCCESS;
+}
+} // namespace
+tsapi TSReturnCode
+TSYAMLCompatibilityCheck(const char *yaml_version, size_t yamlcpp_lib_len)
+{
+  sdk_assert(sdk_sanity_check_null_ptr(yaml_version) == TS_SUCCESS);
+
+  return yamlcpp_version_check(std::string_view{yaml_version, yamlcpp_lib_len});
+}
+
+tsapi const char *
+TSYAMLCoreVersionGet(void)
+{
+  static std::string version{YAMLCPP_LIB_VERSION};
+  return version.c_str();
+}
+
 namespace rpc
 {
 extern std::mutex g_rpcHandlingMutex;
@@ -10354,10 +10384,7 @@ TSRPCRegister(const char *provider_name, size_t provider_len, const char *yaml_v
   sdk_assert(sdk_sanity_check_null_ptr(yaml_version) == TS_SUCCESS);
   sdk_assert(sdk_sanity_check_null_ptr(provider_name) == TS_SUCCESS);
 
-  // We want to make sure that plugins are using the same yaml library version as we use internally. Plugins have to cast the TSYaml
-  // to the YAML::Node, in order for them to make sure the version compatibility they need to register here and make sure the
-  // version is the same.
-  if (std::string_view{yaml_version, yamlcpp_lib_len} != YAMLCPP_LIB_VERSION) {
+  if (yamlcpp_version_check(std::string_view{yaml_version, yamlcpp_lib_len}) != TS_SUCCESS) {
     return nullptr;
   }
 
