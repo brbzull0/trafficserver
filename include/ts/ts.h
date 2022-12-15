@@ -2174,6 +2174,21 @@ tsapi void TSStatIntSet(int the_stat, TSMgmtInt value);
 
 tsapi TSReturnCode TSStatFindName(const char *name, int *idp);
 
+/*  Records.yaml file handling API.
+
+   This should be used to interact with records file in YAMl format, the only
+   point is to be used with record files as each @a TSYAMLRecCfgFieldData contains
+   the record name that will be used as well as the YAML node for the scalar value.
+
+   If you need to parse a records.yaml file and need to handle each node separately then
+   this API should be used, an example of this would be the conf_remap plugin.
+*/
+typedef TSReturnCode (*TSYAMLRecNodeHandler)(const TSYAMLRecCfgFieldData *cfg, void *data);
+/* This will return TS_ERROR if there was an issue while parsing the file. Particular node errors
+   should be handled by the @a TSYAMLRecNodeHandler implementation.
+*/
+tsapi TSReturnCode TSRecYAMLConfigParse(TSYaml node, TSYAMLRecNodeHandler handler, void *data);
+
 /* --------------------------------------------------------------------------
    tracing api */
 

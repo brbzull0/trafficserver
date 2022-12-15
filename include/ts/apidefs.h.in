@@ -1496,6 +1496,17 @@ typedef struct TSRPCHandlerOptions_s {
   } auth;
 } TSRPCHandlerOptions;
 
+///
+/// @brief Config field from a records file.
+///
+/// This is used to interact with the records YAML files. This is passed back to the @c TSYAMLRecCfgFieldData
+/// when you call @c TSRecYAMLConfigParse this class will hold the record name as well as the YAML node.
+///
+typedef struct TSYAMLCfgFieldData_s {
+  const char *field_name;  ///< YAML field name. null terminated
+  const char *record_name; ///< record name. null terminated
+  TSYaml value_node;       ///< YAML::Node pointer.
+} TSYAMLRecCfgFieldData;
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
