@@ -117,7 +117,7 @@ QUICConfigParams::initialize()
   REC_ReadConfigStringAlloc(this->_server_supported_groups, "proxy.config.quic.server.supported_groups");
   REC_ReadConfigStringAlloc(this->_client_supported_groups, "proxy.config.quic.client.supported_groups");
   REC_ReadConfigStringAlloc(this->_client_session_file, "proxy.config.quic.client.session_file");
-  REC_ReadConfigStringAlloc(this->_qlog_dir, "proxy.config.quic.qlog_dir");
+  REC_ReadConfigStringAlloc(this->_qlog_dir, "proxy.config.quic.qlog.dir");
 
   // Transport Parameters
   REC_EstablishStaticConfigInt32U(this->_no_activity_timeout_in, "proxy.config.quic.no_activity_timeout_in");

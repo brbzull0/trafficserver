@@ -23,6 +23,7 @@
 #include "tscore/I_Layout.h"
 #include "tscore/ink_config.h"
 #include "P_Net.h"
+#include "swoc/bwf_base.h"
 
 #include "P_QUICNet.h"
 #include "P_QUICPacketHandler_quiche.h"
@@ -289,7 +290,9 @@ QUICPacketHandlerIn::_recv_packet(int event, UDPPacket *udp_packet)
       quiche_conn_trace_id(quiche_con, &quic_trace_id, &quic_trace_id_len);
       snprintf(qlog_filepath, PATH_MAX, "%s/%.*s.sqlog", Layout::get()->relative(params->qlog_dir()).c_str(),
                static_cast<int>(quic_trace_id_len), quic_trace_id);
-      quiche_conn_set_qlog_path(quiche_con, qlog_filepath, "ats", "");
+      if (auto success = quiche_conn_set_qlog_path(quiche_con, qlog_filepath, "Apache Traffic Server", "qlog"); !success) {
+        QUICDebug("quiche_conn_set_qlog_path failed to use %s", qlog_filepath);
+      }
     }
 
     vc = static_cast<QUICNetVConnection *>(getNetProcessor()->allocate_vc(nullptr));
