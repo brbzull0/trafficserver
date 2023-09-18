@@ -1450,11 +1450,11 @@ TS_CHECK_LUAJIT
 enable_quic=no
 TS_CHECK_QUICHE
 if test "${has_quiche}" = "1"; then
-if test "$openssl_is_boringssl" = "1" ; then
+# if test "$openssl_is_boringssl" = "1" ; then
 enable_quic=yes
-else
-  AC_MSG_ERROR([Use of BoringSSL is required if Quiche is used])
-fi
+# else
+  # AC_MSG_ERROR([Use of BoringSSL is required if Quiche is used.])
+# fi
 fi
 TS_ARG_ENABLE_VAR([use], [quic])
 AC_SUBST(use_quic)
