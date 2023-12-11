@@ -106,16 +106,13 @@ RecordPrinter::write_output(YAML::Node const &result)
   auto const &response = result.as<shared::rpc::RecordLookUpResponse>();
   std::string text;
   for (auto &&recordInfo : response.recordList) {
-    if (!recordInfo.registered) {
-      std::cout << recordInfo.name
-                << ": Unrecognized configuration value. Record is a configuration name/value but is not registered\n";
-      continue;
-    }
     if (!_printAsRecords) {
-      std::cout << recordInfo.name << ": " << recordInfo.currentValue << '\n';
+      std::cout << recordInfo.name << ": " << recordInfo.currentValue << (!recordInfo.registered ? " (not registered)" : "")
+                << '\n';
     } else {
-      std::cout << swoc::bwprint(text, "{} {} {} {} # default: {}\n", rec_labelof(recordInfo.rclass), recordInfo.name,
-                                 recordInfo.dataType, recordInfo.currentValue, recordInfo.defaultValue);
+      std::cout << swoc::bwprint(text, "{} {} {} {} # default: {}{}\n", rec_labelof(recordInfo.rclass), recordInfo.name,
+                                 recordInfo.dataType, recordInfo.currentValue, recordInfo.defaultValue,
+                                 (!recordInfo.registered ? " (not registered)" : ""));
     }
   }
   // we print errors if found.
@@ -237,14 +234,10 @@ RecordDescribePrinter::write_output(YAML::Node const &result)
   auto const &response = result.as<shared::rpc::RecordLookUpResponse>();
   std::string text;
   for (auto &&recordInfo : response.recordList) {
-    if (!recordInfo.registered) {
-      std::cout << recordInfo.name
-                << ": Unrecognized configuration value. Record is a configuration name/value but is not registered\n";
-      continue;
-    }
     std::cout << swoc::bwprint(text, "{:16s}: {}\n", "Name", recordInfo.name);
     std::cout << swoc::bwprint(text, "{:16s}: {}\n", "Current Value ", recordInfo.currentValue);
     std::cout << swoc::bwprint(text, "{:16s}: {}\n", "Default Value ", recordInfo.defaultValue);
+    std::cout << swoc::bwprint(text, "{:16s}: {}\n", "Registered ", recordInfo.registered ? "yes" : "no");
     std::cout << swoc::bwprint(text, "{:16s}: {}\n", "Record Type ", rec_labelof(recordInfo.rclass));
     std::cout << swoc::bwprint(text, "{:16s}: {}\n", "Data Type ", recordInfo.dataType);
 
