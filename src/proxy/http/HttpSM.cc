@@ -1982,9 +1982,12 @@ HttpSM::state_read_server_response_header(int event, void *data)
       server_entry->vc_write_handler = &HttpSM::tunnel_handler;
     }
 
-    // If there is a post body in transit, give up on it
-    if (tunnel.is_tunnel_alive()) {
+    if (tunnel.has_unprocessed_data()) {
+      state = ParseResult::CONT;
+      SMDbg(dbg_ctl_http_tproxy, "Tunnel seems to have unprocessed data. Continuing to read server response header");
+    } else if (tunnel.is_tunnel_alive()) { // If there is a post body in transit, give up on it
       tunnel.abort_tunnel();
+      SMDbg(dbg_ctl_http_tproxy, "Aborting tunnel");
       // Make sure client connection is closed when we are done in case there is cruft left over
       t_state.client_info.keep_alive = HTTPKeepAlive::NO_KEEPALIVE;
       // Similarly the server connection should also be closed

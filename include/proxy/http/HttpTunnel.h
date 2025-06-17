@@ -377,6 +377,7 @@ public:
   bool is_tunnel_alive() const;
   bool has_cache_writer() const;
   bool has_consumer_besides_client() const;
+  bool has_unprocessed_data() const;
 
   // CAVEAT: This is different from the HttpTunnel::active flag
   void mark_tls_tunnel_active();

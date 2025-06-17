@@ -605,6 +605,24 @@ HttpTunnel::kill_tunnel()
   this->reset();
 }
 
+bool
+HttpTunnel::has_unprocessed_data() const
+{
+  for (const auto &producer : producers) {
+    if (producer.alive && producer.buffer_start && producer.buffer_start->read_avail() > 0) {
+      return true;
+    }
+  }
+
+  for (const auto &consumer : consumers) {
+    if (consumer.alive && consumer.buffer_reader && consumer.buffer_reader->read_avail() > 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void
 HttpTunnel::abort_tunnel()
 {
