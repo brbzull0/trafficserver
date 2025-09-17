@@ -3959,7 +3959,7 @@ void
 HttpTransact::handle_forward_server_connection_open(State *s)
 {
   TxnDbg(dbg_ctl_http_trans, "(hfsco)");
-  TxnDbg(dbg_ctl_http_seq, "Entering HttpTransact::handle_server_connection_open");
+  TxnDbg(dbg_ctl_http_seq, "Entering HttpTransact::handle_forward_server_connection_open");
   ink_release_assert(s->current.state == CONNECTION_ALIVE);
 
   HTTPVersion real_version = s->state_machine->get_server_version(s->hdr_info.server_response);
