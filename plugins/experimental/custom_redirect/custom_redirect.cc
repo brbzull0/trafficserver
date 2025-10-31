@@ -34,11 +34,9 @@
 #include <cstring>
 #include <cstdlib>
 
-static DbgCtl dbg_ctl{"[custom_redirect]"};
-
-static char *redirect_url_header     = nullptr;
-static int   redirect_url_header_len = 0;
-static int   return_code             = TS_HTTP_STATUS_NONE;
+static DbgCtl      dbg_ctl{"[custom_redirect]"};
+static std::string redirect_url_header;
+static int         return_code = TS_HTTP_STATUS_NONE;
 
 static void
 handle_response(TSHttpTxn txnp, TSCont /* contp ATS_UNUSED */)
@@ -65,7 +63,7 @@ handle_response(TSHttpTxn txnp, TSCont /* contp ATS_UNUSED */)
         const char *method = TSHttpHdrMethodGet(req_bufp, req_loc, &method_len);
         if ((return_code == TS_HTTP_STATUS_NONE || return_code == status) &&
             ((strncasecmp(method, TS_HTTP_METHOD_GET, TS_HTTP_LEN_GET) == 0))) {
-          redirect_url_loc = TSMimeHdrFieldFind(resp_bufp, resp_loc, redirect_url_header, redirect_url_header_len);
+          redirect_url_loc = TSMimeHdrFieldFind(resp_bufp, resp_loc, redirect_url_header.data(), redirect_url_header.size());
 
           if (redirect_url_loc) {
             redirect_url_str = TSMimeHdrFieldValueStringGet(resp_bufp, resp_loc, redirect_url_loc, -1, &redirect_url_length);
@@ -144,14 +142,13 @@ TSPluginInit(int argc, const char *argv[])
   if (argc > 1) {
     if (isNumber(argv[1])) {
       return_code         = atoi(argv[1]);
-      redirect_url_header = TSstrdup(TS_MIME_FIELD_LOCATION);
+      redirect_url_header = TS_MIME_FIELD_LOCATION;
     } else {
-      redirect_url_header = TSstrdup(argv[1]);
+      redirect_url_header = argv[1];
     }
   } else {
     // default header name is x-redirect-url
-    redirect_url_header     = TSstrdup("x-redirect-url");
-    redirect_url_header_len = strlen(redirect_url_header);
+    redirect_url_header = "x-redirect-url";
   }
   if (TSPluginRegister(&info) != TS_SUCCESS) {
     TSError("[custom_redirect] Plugin registration failed");
