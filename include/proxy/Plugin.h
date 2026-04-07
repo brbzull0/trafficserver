@@ -40,6 +40,7 @@ struct PluginYAMLEntry {
   bool                     enabled{true};
   int                      load_order{-1};
   std::vector<std::string> params;
+  std::string              config_literal;
 };
 
 using PluginYAMLEntries = std::vector<PluginYAMLEntry>;

@@ -451,6 +451,14 @@ parse_plugin_yaml(const char *yaml_path)
         entry.params.emplace_back(p.as<std::string>());
       }
     }
+    if (auto n = node["config"]; n) {
+      if (n.IsScalar()) {
+        entry.config_literal = n.as<std::string>();
+      } else {
+        result.errata.note("plugin '{}': 'config' must be a scalar (use literal block '|' for multi-line content)", entry.path);
+        return result;
+      }
+    }
 
     indexed.push_back({seq_idx++, std::move(entry)});
   }
@@ -473,12 +481,54 @@ parse_plugin_yaml(const char *yaml_path)
   return result;
 }
 
-/// Build the argv for a single plugin: [path, params..., $record expansions].
+/// Write inline config content to a temp file, returning the path on success.
+static std::optional<std::string>
+write_inline_config(const PluginYAMLEntry &entry, int index)
+{
+  char tmp_path[PATH_NAME_MAX];
+
+  std::string_view stem{entry.path};
+  if (auto pos = stem.rfind('/'); pos != std::string_view::npos) {
+    stem = stem.substr(pos + 1);
+  }
+  if (auto pos = stem.rfind('.'); pos != std::string_view::npos) {
+    stem = stem.substr(0, pos);
+  }
+
+  snprintf(tmp_path, sizeof(tmp_path), "%s/.%.*s_inline_%d.conf", RecConfigReadConfigDir().c_str(), static_cast<int>(stem.size()),
+           stem.data(), index);
+
+  int fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (fd < 0) {
+    Error("%s: failed to create temp config for %s: %s", ts::filename::PLUGIN_YAML, entry.path.c_str(), strerror(errno));
+    return std::nullopt;
+  }
+
+  auto n = write(fd, entry.config_literal.data(), entry.config_literal.size());
+  close(fd);
+
+  if (n < 0) {
+    Error("%s: failed to write inline config for %s", ts::filename::PLUGIN_YAML, entry.path.c_str());
+    return std::nullopt;
+  }
+
+  return std::string(tmp_path);
+}
+
+/// Build the argv for a single plugin: [path, inline_config_path?, params..., $record expansions].
 static std::optional<std::vector<std::string>>
-build_plugin_args(const PluginYAMLEntry &entry)
+build_plugin_args(const PluginYAMLEntry &entry, int index)
 {
   std::vector<std::string> args;
   args.emplace_back(entry.path);
+
+  if (!entry.config_literal.empty()) {
+    if (auto path = write_inline_config(entry, index); path) {
+      args.emplace_back(std::move(*path));
+    } else {
+      return std::nullopt;
+    }
+  }
 
   for (const auto &p : entry.params) {
     args.emplace_back(p);
@@ -543,7 +593,7 @@ plugin_yaml_init(bool validateOnly)
       continue;
     }
 
-    auto args = build_plugin_args(entry);
+    auto args = build_plugin_args(entry, index);
     if (!args) {
       return false;
     }
