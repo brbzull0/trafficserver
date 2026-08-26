@@ -222,6 +222,19 @@ FileConfigCommand::FileConfigCommand(ts::Arguments *args) : CtrlCommand(args)
   }
 }
 
+std::string
+FileConfigCommand::cold_file_origin()
+{
+  auto const &origin = get_parsed_arguments()->get(COLD_STR).env_source();
+
+  if (origin.empty()) {
+    return {};
+  }
+  std::string text;
+
+  return swoc::bwprint(text, " (from {})", origin);
+}
+
 void
 FileConfigCommand::config_get()
 {
@@ -233,9 +246,9 @@ FileConfigCommand::config_get()
   try {
     FlatYAMLAccessor::load(YAML::LoadAllFromFile(filename));
 
-    // Name the file, as the same output shape is used for values read from the server, and
-    // the file may have been named by TS_RECORD_YAML rather than on the command line.
-    _printer->write_output(swoc::bwprint(text, "# {}", filename));
+    // Name the file once, as the same output shape is used for values read from the server,
+    // and the file may have been named by an environment variable rather than typed.
+    _printer->write_output(swoc::bwprint(text, "# {}{}", filename, cold_file_origin()));
 
     for (auto const &var : data) { // we support multiple get's
       auto [found, search] = find_node(amend_variable_name(var));
@@ -331,7 +344,7 @@ FileConfigCommand::config_set()
       fs.close();
     }
     std::string text;
-    _printer->write_output(swoc::bwprint(text, "Set {} in {}", variable, filename));
+    _printer->write_output(swoc::bwprint(text, "Set {} in {}{}", variable, filename, cold_file_origin()));
   } catch (std::exception const &ex) {
     if (fs.is_open()) {
       fs.close();

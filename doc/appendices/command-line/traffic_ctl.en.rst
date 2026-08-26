@@ -571,8 +571,9 @@ Display the current value of a configuration record.
 
 
    Both actions name the file they worked on, because their output is otherwise the same as
-   for a value held by the running server, and the file may have been named by
-   :envvar:`TS_RECORD_YAML` rather than on the command line.
+   for a value held by the running server. When the name was not typed but taken from
+   :envvar:`TS_RECORD_YAML`, the variable is named as well, once per invocation however many
+   records are involved.
 
    .. code-block:: bash
 
@@ -582,6 +583,12 @@ Display the current value of a configuration record.
       $ traffic_ctl config get proxy.config.diags.debug.enabled -c records.yaml
       # records.yaml
       proxy.config.diags.debug.enabled: 1
+
+      $ export TS_RECORD_YAML=/tmp/staging/records.yaml
+      $ traffic_ctl config get proxy.config.diags.debug.enabled proxy.config.diags.debug.tags -c
+      # /tmp/staging/records.yaml (from TS_RECORD_YAML)
+      proxy.config.diags.debug.enabled: 1
+      proxy.config.diags.debug.tags: http|dns
 
    Appending a new field in a records.yaml file.
 
@@ -1540,6 +1547,8 @@ Environment Variables
 
 These variables supply the value of an option that was used without one. The option still
 has to be written on the command line, and anything written there wins over the variable.
+When a variable is what took effect, the output says so, so that a value nobody typed is
+never applied silently.
 
 .. envvar:: TS_RECORD_YAML
 
@@ -1550,7 +1559,10 @@ has to be written on the command line, and anything written there wins over the 
    .. code-block:: bash
 
       $ export TS_RECORD_YAML=/tmp/staging/records.yaml
-      $ traffic_ctl config get proxy.config.diags.debug.enabled -c   # reads the file above
+      $ traffic_ctl config get proxy.config.diags.debug.enabled -c
+      # /tmp/staging/records.yaml (from TS_RECORD_YAML)
+      proxy.config.diags.debug.enabled: 1
+
       $ traffic_ctl config get proxy.config.diags.debug.enabled      # unchanged, asks the server
 
 .. envvar:: TS_DEBUG_TAGS

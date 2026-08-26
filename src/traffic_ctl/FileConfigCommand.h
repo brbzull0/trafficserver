@@ -82,6 +82,14 @@ class FileConfigCommand : public CtrlCommand, FlatYAMLAccessor
   void config_set();
   void config_get();
 
+  /** Where the file name came from, when it was not typed on the command line.
+
+      @return A parenthesised note naming the environment variable that supplied the file
+      name, or an empty string when it was typed. Meant to be appended to the single line
+      that names the file, so that it is reported once per invocation.
+   */
+  std::string cold_file_origin();
+
 public:
   FileConfigCommand(ts::Arguments *args);
 };

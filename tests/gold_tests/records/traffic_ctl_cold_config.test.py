@@ -17,6 +17,7 @@
 #  limitations under the License.
 
 import os
+import re
 from jsonrpc import Notification, Request, Response
 
 Test.Summary = 'Basic records test. Testing the new records.yaml logic and making sure it works as expected.'
@@ -104,18 +105,34 @@ tr.Processes.Default.ReturnCode = 0
 tr.Processes.Default.Env = ts.Env
 tr.Disk.File(env_file).Content = 'gold/records.yaml.cold_test5.gold'
 tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(
-    f'Set records.cache.limits.http.max_alts in {env_file}', 'The output must name the file that was written')
+    f'Set records.cache.limits.http.max_alts in {env_file} \\(from TS_RECORD_YAML\\)',
+    'The output must name the file that was written and where the name came from')
 
 # 7
-tr = Test.AddTestRun("Get a value from the file named by TS_RECORD_YAML")
-tr.Processes.Default.Command = f'env TS_RECORD_YAML={env_file} traffic_ctl config get proxy.config.cache.limits.http.max_alts -c'
+tr = Test.AddTestRun("Get several values from the file named by TS_RECORD_YAML")
+tr.Processes.Default.Command = (
+    f'env TS_RECORD_YAML={env_file} traffic_ctl config get '
+    'proxy.config.cache.limits.http.max_alts proxy.config.diags.debug.tags -c')
 tr.Processes.Default.ReturnCode = 0
 tr.Processes.Default.Env = ts.Env
-tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(f'# {env_file}', 'The output must name the file that was read')
+tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(
+    f'# {env_file} \\(from TS_RECORD_YAML\\)', 'The output must name the file that was read and where the name came from')
+tr.Processes.Default.Streams.stdout += Testers.ExcludesExpression(
+    'TS_RECORD_YAML\\)[\\s\\S]*TS_RECORD_YAML\\)',
+    'The origin must be reported once per invocation, not once per record',
+    reflags=re.M)
 tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(
     'proxy.config.cache.limits.http.max_alts: 3', 'The value must come from the file named by the variable')
 
 # 8
+tr = Test.AddTestRun("A file name given on the command line is not reported as coming from the environment")
+tr.Processes.Default.Command = f'traffic_ctl config get proxy.config.cache.limits.http.max_alts -c {env_file}'
+tr.Processes.Default.ReturnCode = 0
+tr.Processes.Default.Env = ts.Env
+tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(f'# {env_file}', 'The output must name the file that was read')
+tr.Processes.Default.Streams.stdout += Testers.ExcludesExpression('from TS_RECORD_YAML', 'The name was typed, so nothing to report')
+
+# 9
 tr = Test.AddTestRun("Without -c the variable is ignored and the server is queried")
 tr.Processes.Default.Command = f'env TS_RECORD_YAML={env_file} traffic_ctl config get proxy.config.cache.limits.http.max_alts'
 tr.Processes.Default.ReturnCode = 0

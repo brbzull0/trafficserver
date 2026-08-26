@@ -55,6 +55,13 @@ public:
   }
   // return the Environment variable
   std::string const &env() const noexcept;
+  /** The environment variable that supplied these values.
+
+      @return The variable name, or an empty string when the values were typed on the
+      command line, came from the declared default, or are absent. Use this to tell the user
+      that a value they did not type is in effect, and where it came from.
+   */
+  std::string const &env_source() const noexcept;
   // iterator for arguments
   AP_StrVec::const_iterator begin() const noexcept;
   AP_StrVec::const_iterator end() const noexcept;
@@ -71,6 +78,8 @@ private:
   bool _is_called = false;
   // the environment variable
   std::string _env_value;
+  // the environment variable that supplied _values, empty if none did
+  std::string _env_source;
   // the arguments stored
   AP_StrVec _values;
 
@@ -95,6 +104,8 @@ public:
   void append_arg(std::string const &key, std::string const &value);
   // append env value to the map with key
   void set_env(std::string const &key, std::string const &value);
+  // record that the values of key were supplied by the named environment variable
+  void set_env_source(std::string const &key, std::string const &name);
   // Print all we have in the parsed data to the console
   void show_all_configuration() const;
   /** Invoke the function associated with the parsed command.

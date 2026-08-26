@@ -129,7 +129,10 @@ whole, so a path containing spaces survives. A variable on an option expecting n
 has nothing to supply and is ignored.
 
 :func:`ArgumentData::env` still returns the raw variable, whether or not it was used to
-supply a value.
+supply a value. :func:`ArgumentData::env_source` names the variable that did supply the
+values, and is empty otherwise, so a tool can tell its user that a value nobody typed is in
+effect. Report it once per invocation rather than once per value, as
+:program:`traffic_ctl` does for ``-c``.
 
 We can also use the following chained way to add subcommand or option:
 

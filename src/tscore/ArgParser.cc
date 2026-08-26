@@ -778,6 +778,8 @@ ArgParser::Command::apply_env_values(Arguments &ret) const
     if (!data || data.size() > 0) {
       return;
     }
+    // Named so that a caller can report a value the user did not type.
+    ret.set_env_source(key, envvar);
     if (1 == arg_num) {
       // A single value is taken whole, so that a path or a quoted string survives.
       ret.append_arg(key, value);
@@ -936,6 +938,12 @@ Arguments::set_env(std::string const &key, std::string const &value)
 }
 
 void
+Arguments::set_env_source(std::string const &key, std::string const &name)
+{
+  _data_map[key]._env_source = name;
+}
+
+void
 Arguments::show_all_configuration() const
 {
   for (const auto &it : _data_map) {
@@ -974,6 +982,12 @@ std::string const &
 ArgumentData::env() const noexcept
 {
   return _env_value;
+}
+
+std::string const &
+ArgumentData::env_source() const noexcept
+{
+  return _env_source;
 }
 
 std::string const &

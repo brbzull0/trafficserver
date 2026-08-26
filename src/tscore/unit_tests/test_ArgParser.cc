@@ -237,11 +237,14 @@ TEST_CASE("An environment variable supplies the value of an option used without 
   REQUIRE(parsed.get("file") == true);
   REQUIRE(parsed.get("file").value() == "/tmp/from_env.yaml");
   REQUIRE(parsed.get("get").size() == 1);
+  // The caller can tell the user where a value it did not type came from.
+  REQUIRE(parsed.get("file").env_source() == "TS_TEST_FILE");
 
-  // A typed value always wins over the variable.
+  // A typed value always wins over the variable, and is not reported as coming from it.
   const char *argv2[] = {"test_prog", "get", "-f", "/tmp/typed.yaml", "proxy.config.x", nullptr};
   parsed              = parser.parse(argv2);
   REQUIRE(parsed.get("file").value() == "/tmp/typed.yaml");
+  REQUIRE(parsed.get("file").env_source().empty());
 
   // An option taking several values splits the variable on spaces.
   const char *argv3[] = {"test_prog", "get", "proxy.config.x", "-t", nullptr};
@@ -285,10 +288,11 @@ TEST_CASE("An environment variable outranks a declared default but not a typed v
   ts::Arguments parsed  = parser.parse(argv1);
   REQUIRE(parsed.get("threshold").value() == "200");
 
-  // Not used at all, so the default still applies.
+  // Not used at all, so the default still applies and no variable is credited.
   const char *argv2[] = {"test_prog", "scan", nullptr};
   parsed              = parser.parse(argv2);
   REQUIRE(parsed.get("threshold").value() == "100");
+  REQUIRE(parsed.get("threshold").env_source().empty());
 
   // Typed, so neither the variable nor the default is consulted.
   const char *argv3[] = {"test_prog", "scan", "-T", "300", nullptr};
