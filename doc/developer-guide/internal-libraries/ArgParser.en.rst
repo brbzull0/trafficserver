@@ -104,6 +104,33 @@ To add options to the parser or current command:
 
 This function call returns the new :class:`Option` instance. (0 is also number of arguments expected)
 
+Environment Variables
+---------------------
+
+The environment variable named when adding a command or an option supplies the values that
+were not typed on the command line. It is consulted only for a command or option that was
+actually used, and only when that command or option was given no values of its own, so the
+order of preference is:
+
+#. Values given on the command line.
+#. The environment variable.
+#. The declared default value.
+
+A variable never makes an unused command or option appear to have been used. This matters
+for an option that selects where a command takes its data from: exporting
+``TS_RECORD_YAML`` must not turn every :program:`traffic_ctl` ``config get`` into a file
+read.
+
+An option that names a variable also accepts being written without a value. Where a
+missing value would otherwise be a usage error, the variable provides it instead, and the
+usage error is reported only when the variable is unset or empty. An option expecting
+several values splits the variable on spaces; an option expecting exactly one takes it
+whole, so a path containing spaces survives. A variable on an option expecting no values
+has nothing to supply and is ignored.
+
+:func:`ArgumentData::env` still returns the raw variable, whether or not it was used to
+supply a value.
+
 We can also use the following chained way to add subcommand or option:
 
 .. code-block:: cpp

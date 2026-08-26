@@ -570,6 +570,19 @@ Display the current value of a configuration record.
    so, make sure you use the right prefixes.
 
 
+   Both actions name the file they worked on, because their output is otherwise the same as
+   for a value held by the running server, and the file may have been named by
+   :envvar:`TS_RECORD_YAML` rather than on the command line.
+
+   .. code-block:: bash
+
+      $ traffic_ctl config set proxy.config.diags.debug.enabled 1 -c records.yaml
+      Set records.diags.debug.enabled in records.yaml
+
+      $ traffic_ctl config get proxy.config.diags.debug.enabled -c records.yaml
+      # records.yaml
+      proxy.config.diags.debug.enabled: 1
+
    Appending a new field in a records.yaml file.
 
    .. code-block:: bash
@@ -1521,6 +1534,35 @@ Autest
 Runroot needs to be configured in order to let `traffic_ctl` know where to find the socket. This is done by default
 and there is no change you have to do to interact with it, but make sure that you are not overriding the `dump_runroot=False`
 when creating the ATS Process, otherwise the `runroot.yaml` will not be set.
+
+Environment Variables
+=====================
+
+These variables supply the value of an option that was used without one. The option still
+has to be written on the command line, and anything written there wins over the variable.
+
+.. envvar:: TS_RECORD_YAML
+
+   The configuration file read and written by ``config get -c`` and ``config set -c``. Used
+   only when ``-c`` is given with no file name, in place of the ``records.yaml`` of the
+   configuration directory.
+
+   .. code-block:: bash
+
+      $ export TS_RECORD_YAML=/tmp/staging/records.yaml
+      $ traffic_ctl config get proxy.config.diags.debug.enabled -c   # reads the file above
+      $ traffic_ctl config get proxy.config.diags.debug.enabled      # unchanged, asks the server
+
+.. envvar:: TS_DEBUG_TAGS
+
+   The tags used by ``server debug enable -t`` when it is given none.
+
+   .. code-block:: bash
+
+      $ TS_DEBUG_TAGS='http|dns' traffic_ctl server debug enable -t
+
+:envvar:`TS_RUNROOT` also applies, and is read whether or not :option:`--run-root` is
+given. See :ref:`runroot`.
 
 Exit Codes
 ==========

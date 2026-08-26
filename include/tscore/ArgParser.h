@@ -226,6 +226,8 @@ public:
     void validate_mutex_groups(Arguments &ret) const;
     // Helper method to validate option dependencies
     void validate_dependencies(Arguments &ret) const;
+    // Helper method to supply values from a declared environment variable
+    void apply_env_values(Arguments &ret) const;
     // Helper method to apply default values for options not explicitly set
     void apply_option_defaults(Arguments &ret) const;
     // The command name and help message

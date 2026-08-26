@@ -92,3 +92,35 @@ tr.Processes.Default.Command = f'traffic_ctl config set proxy.config.cache.limit
 tr.Processes.Default.ReturnCode = 0
 tr.Processes.Default.Env = ts.Env
 tr.Disk.File(file).Content = 'gold/records.yaml.cold_test5.gold'
+
+# TS_RECORD_YAML names the file when -c is given without one. The option is still required,
+# so the variable alone must not turn a get into a file read.
+env_file = os.path.join(ts.Variables.CONFIGDIR, "env_records.yaml")
+
+# 6
+tr = Test.AddTestRun("Set a value in the file named by TS_RECORD_YAML")
+tr.Processes.Default.Command = f'env TS_RECORD_YAML={env_file} traffic_ctl config set proxy.config.cache.limits.http.max_alts 3 -c'
+tr.Processes.Default.ReturnCode = 0
+tr.Processes.Default.Env = ts.Env
+tr.Disk.File(env_file).Content = 'gold/records.yaml.cold_test5.gold'
+tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(
+    f'Set records.cache.limits.http.max_alts in {env_file}', 'The output must name the file that was written')
+
+# 7
+tr = Test.AddTestRun("Get a value from the file named by TS_RECORD_YAML")
+tr.Processes.Default.Command = f'env TS_RECORD_YAML={env_file} traffic_ctl config get proxy.config.cache.limits.http.max_alts -c'
+tr.Processes.Default.ReturnCode = 0
+tr.Processes.Default.Env = ts.Env
+tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(f'# {env_file}', 'The output must name the file that was read')
+tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(
+    'proxy.config.cache.limits.http.max_alts: 3', 'The value must come from the file named by the variable')
+
+# 8
+tr = Test.AddTestRun("Without -c the variable is ignored and the server is queried")
+tr.Processes.Default.Command = f'env TS_RECORD_YAML={env_file} traffic_ctl config get proxy.config.cache.limits.http.max_alts'
+tr.Processes.Default.ReturnCode = 0
+tr.Processes.Default.Env = ts.Env
+tr.Processes.Default.Streams.stdout += Testers.ContainsExpression(
+    'proxy.config.cache.limits.http.max_alts: 5', 'The running value must be reported, not the one in the file')
+tr.Processes.Default.Streams.stdout += Testers.ExcludesExpression(
+    f'# {env_file}', 'A value from the server must not be marked as coming from a file')

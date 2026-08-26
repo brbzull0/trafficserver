@@ -233,6 +233,10 @@ FileConfigCommand::config_get()
   try {
     FlatYAMLAccessor::load(YAML::LoadAllFromFile(filename));
 
+    // Name the file, as the same output shape is used for values read from the server, and
+    // the file may have been named by TS_RECORD_YAML rather than on the command line.
+    _printer->write_output(swoc::bwprint(text, "# {}", filename));
+
     for (auto const &var : data) { // we support multiple get's
       auto [found, search] = find_node(amend_variable_name(var));
 
@@ -327,7 +331,7 @@ FileConfigCommand::config_set()
       fs.close();
     }
     std::string text;
-    _printer->write_output(swoc::bwprint(text, "Set {}", variable));
+    _printer->write_output(swoc::bwprint(text, "Set {} in {}", variable, filename));
   } catch (std::exception const &ex) {
     if (fs.is_open()) {
       fs.close();

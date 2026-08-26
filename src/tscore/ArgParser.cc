@@ -518,10 +518,28 @@ ArgParser::Command::output_option() const
   }
 }
 
+/** The value of the environment variable named by @a envvar.
+
+    @return The value, or an empty string when @a envvar is empty, names no variable, or
+    names one set to the empty string. An empty value is treated as no value, so that
+    exporting a variable with nothing in it does not override a declared default.
+ */
+static std::string
+env_value(std::string const &envvar)
+{
+  if (envvar.empty()) {
+    return {};
+  }
+  char const *const env = getenv(envvar.c_str());
+
+  return nullptr != env ? env : "";
+}
+
 // helper method to handle the arguments and put them nicely in arguments
 // can be switched to ts::errata
 static std::string
-handle_args(Arguments &ret, AP_StrVec &args, std::string const &name, unsigned arg_num, unsigned &index)
+handle_args(Arguments &ret, AP_StrVec &args, std::string const &name, unsigned arg_num, unsigned &index,
+            std::string const &envvar = "")
 {
   ArgumentData data;
   ret.append(name, data);
@@ -535,6 +553,13 @@ handle_args(Arguments &ret, AP_StrVec &args, std::string const &name, unsigned a
       ret.append_arg(name, args[j]);
     }
     args.erase(args.begin() + index, args.end());
+    return "";
+  }
+  // A declared environment variable stands in for values that were not typed, so consume
+  // only the name itself and leave the values to apply_env_values().
+  if (arg_num > 0 && (args.size() < index + 2 || args[index + 1].empty()) && !env_value(envvar).empty()) {
+    args.erase(args.begin() + index);
+    index -= 1;
     return "";
   }
   // finite number of argument handling
@@ -706,7 +731,7 @@ ArgParser::Command::append_option_data(Arguments &ret, AP_StrVec &args, int inde
           cur_option = _option_list.at(short_it->second);
         }
         // handle the arguments
-        std::string err = handle_args(ret, args, cur_option.key, cur_option.arg_num, i);
+        std::string err = handle_args(ret, args, cur_option.key, cur_option.arg_num, i, cur_option.envvar);
         if (!err.empty()) {
           help_message(err);
         }
@@ -724,6 +749,51 @@ ArgParser::Command::append_option_data(Arguments &ret, AP_StrVec &args, int inde
     if (num != it.second && num < MORE_THAN_ONE_ARG_N) {
       help_message(std::to_string(_option_list.at(it.first).arg_num) + " arguments expected by " + it.first);
     }
+  }
+}
+
+/** Supply values from a declared environment variable to a command or option that was used
+    without any.
+
+    The variable stands in for values the user did not type, so it never overrides what was
+    typed, and it never makes an unused command or option appear to have been used. Called
+    before apply_option_defaults() so that the environment outranks the declared default.
+ */
+void
+ArgParser::Command::apply_env_values(Arguments &ret) const
+{
+  auto from_env = [&ret](std::string const &key, std::string const &envvar, unsigned arg_num) {
+    if (0 == arg_num) {
+      // A switch has nothing for the variable to fill in.
+      return;
+    }
+    std::string const value = env_value(envvar);
+
+    if (value.empty()) {
+      return;
+    }
+    // Only a command or option that was used, and that was given no values of its own.
+    auto const data = ret.get(key);
+
+    if (!data || data.size() > 0) {
+      return;
+    }
+    if (1 == arg_num) {
+      // A single value is taken whole, so that a path or a quoted string survives.
+      ret.append_arg(key, value);
+      return;
+    }
+    std::istringstream ss(value);
+    std::string        token;
+
+    while (std::getline(ss, token, ' ')) {
+      ret.append_arg(key, token);
+    }
+  };
+
+  from_env(_key, _envvar, _arg_num);
+  for (auto const &it : _option_list) {
+    from_env(it.second.key, it.second.envvar, it.second.arg_num);
   }
 }
 
@@ -763,7 +833,7 @@ ArgParser::Command::parse(Arguments &ret, AP_StrVec &args)
     if (_f) {
       ret._action = _f;
     }
-    const std::string err = handle_args(ret, args, _key, _arg_num, index);
+    const std::string err = handle_args(ret, args, _key, _arg_num, index, _envvar);
     if (!err.empty()) {
       help_message(err);
     }
@@ -778,6 +848,10 @@ ArgParser::Command::parse(Arguments &ret, AP_StrVec &args)
 
     // Validate option dependencies
     validate_dependencies(ret);
+
+    // Supply values from the environment before the declared defaults, so that a variable
+    // outranks a default but still loses to anything typed on the command line.
+    apply_env_values(ret);
 
     // Apply default values after validation so that defaults don't
     // trigger dependency checks (e.g. --timeout with default "0"

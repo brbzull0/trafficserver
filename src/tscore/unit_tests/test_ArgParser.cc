@@ -217,3 +217,135 @@ TEST_CASE("with_required does not trigger on default values", "[parse]")
   REQUIRE(parsed.get("threshold").value() == "300");
   REQUIRE(parsed.get("verbose") == true);
 }
+
+TEST_CASE("An environment variable supplies the value of an option used without one", "[parse][env]")
+{
+  setenv("TS_TEST_FILE", "/tmp/from_env.yaml", 1);
+  setenv("TS_TEST_TAGS", "http dns", 1);
+
+  ts::ArgParser parser;
+  parser.add_global_usage("test_prog [OPTIONS]");
+
+  ts::ArgParser::Command &cmd = parser.add_command("get", "get records", "", MORE_THAN_ONE_ARG_N, nullptr);
+  cmd.add_option("--file", "-f", "read from a file", "TS_TEST_FILE", 1);
+  cmd.add_option("--tags", "-t", "debug tags", "TS_TEST_TAGS", 2);
+
+  // The option is used with no value of its own, which used to be a usage error for a
+  // fixed number of arguments. The variable supplies it instead.
+  const char   *argv1[] = {"test_prog", "get", "proxy.config.x", "-f", nullptr};
+  ts::Arguments parsed  = parser.parse(argv1);
+  REQUIRE(parsed.get("file") == true);
+  REQUIRE(parsed.get("file").value() == "/tmp/from_env.yaml");
+  REQUIRE(parsed.get("get").size() == 1);
+
+  // A typed value always wins over the variable.
+  const char *argv2[] = {"test_prog", "get", "-f", "/tmp/typed.yaml", "proxy.config.x", nullptr};
+  parsed              = parser.parse(argv2);
+  REQUIRE(parsed.get("file").value() == "/tmp/typed.yaml");
+
+  // An option taking several values splits the variable on spaces.
+  const char *argv3[] = {"test_prog", "get", "proxy.config.x", "-t", nullptr};
+  parsed              = parser.parse(argv3);
+  REQUIRE(parsed.get("tags").size() == 2);
+  REQUIRE(parsed.get("tags").at(0) == "http");
+  REQUIRE(parsed.get("tags").at(1) == "dns");
+}
+
+TEST_CASE("An environment variable does not stand in for an option that was not used", "[parse][env]")
+{
+  setenv("TS_TEST_FILE", "/tmp/from_env.yaml", 1);
+
+  ts::ArgParser parser;
+  parser.add_global_usage("test_prog [OPTIONS]");
+
+  ts::ArgParser::Command &cmd = parser.add_command("get", "get records", "", MORE_THAN_ONE_ARG_N, nullptr);
+  cmd.add_option("--file", "-f", "read from a file", "TS_TEST_FILE", 1);
+
+  // Exporting the variable must not make the command behave as though the option was
+  // given, because an option can select where the command takes its data from.
+  const char   *argv[] = {"test_prog", "get", "proxy.config.x", nullptr};
+  ts::Arguments parsed = parser.parse(argv);
+  REQUIRE(parsed.get("file") == false);
+  REQUIRE(parsed.get("file").size() == 0);
+  REQUIRE(parsed.get("get").size() == 1);
+}
+
+TEST_CASE("An environment variable outranks a declared default but not a typed value", "[parse][env]")
+{
+  setenv("TS_TEST_THRESHOLD", "200", 1);
+
+  ts::ArgParser parser;
+  parser.add_global_usage("test_prog [OPTIONS]");
+
+  ts::ArgParser::Command &cmd = parser.add_command("scan", "scan targets");
+  cmd.add_option("--threshold", "-T", "a numeric value", "TS_TEST_THRESHOLD", 1, "100");
+
+  // Used with no value, so the variable is preferred over the default.
+  const char   *argv1[] = {"test_prog", "scan", "-T", nullptr};
+  ts::Arguments parsed  = parser.parse(argv1);
+  REQUIRE(parsed.get("threshold").value() == "200");
+
+  // Not used at all, so the default still applies.
+  const char *argv2[] = {"test_prog", "scan", nullptr};
+  parsed              = parser.parse(argv2);
+  REQUIRE(parsed.get("threshold").value() == "100");
+
+  // Typed, so neither the variable nor the default is consulted.
+  const char *argv3[] = {"test_prog", "scan", "-T", "300", nullptr};
+  parsed              = parser.parse(argv3);
+  REQUIRE(parsed.get("threshold").value() == "300");
+}
+
+TEST_CASE("A single value from an environment variable keeps its spaces", "[parse][env]")
+{
+  setenv("TS_TEST_PATH", "/tmp/a dir/records.yaml", 1);
+
+  ts::ArgParser parser;
+  parser.add_global_usage("test_prog [OPTIONS]");
+
+  ts::ArgParser::Command &cmd = parser.add_command("get", "get records", "", MORE_THAN_ONE_ARG_N, nullptr);
+  cmd.add_option("--file", "-f", "read from a file", "TS_TEST_PATH", 1);
+
+  const char   *argv[] = {"test_prog", "get", "proxy.config.x", "-f", nullptr};
+  ts::Arguments parsed = parser.parse(argv);
+  REQUIRE(parsed.get("file").size() == 1);
+  REQUIRE(parsed.get("file").value() == "/tmp/a dir/records.yaml");
+}
+
+TEST_CASE("An empty environment variable is treated as unset", "[parse][env]")
+{
+  setenv("TS_TEST_EMPTY", "", 1);
+
+  ts::ArgParser parser;
+  parser.add_global_usage("test_prog [OPTIONS]");
+
+  // A variable arity, because with a fixed one a missing value that the environment cannot
+  // supply is still a usage error.
+  ts::ArgParser::Command &cmd = parser.add_command("scan", "scan targets");
+  cmd.add_option("--threshold", "-T", "a numeric value", "TS_TEST_EMPTY", MORE_THAN_ZERO_ARG_N, "100");
+
+  // Nothing to supply, so the declared default is used rather than an empty value.
+  const char   *argv[] = {"test_prog", "scan", "-T", nullptr};
+  ts::Arguments parsed = parser.parse(argv);
+  REQUIRE(parsed.get("threshold").value() == "100");
+}
+
+TEST_CASE("An environment variable supplies the arguments of a command", "[parse][env]")
+{
+  setenv("TS_TEST_CMD_ARG", "from_env", 1);
+
+  ts::ArgParser parser;
+  parser.add_global_usage("test_prog [OPTIONS]");
+  parser.add_command("init", "initialize", "TS_TEST_CMD_ARG", 1, nullptr);
+
+  // The command needs one argument and was given none, so the variable provides it.
+  const char   *argv1[] = {"test_prog", "init", nullptr};
+  ts::Arguments parsed  = parser.parse(argv1);
+  REQUIRE(parsed.get("init") == true);
+  REQUIRE(parsed.get("init").value() == "from_env");
+
+  // A typed argument still wins.
+  const char *argv2[] = {"test_prog", "init", "typed", nullptr};
+  parsed              = parser.parse(argv2);
+  REQUIRE(parsed.get("init").value() == "typed");
+}
