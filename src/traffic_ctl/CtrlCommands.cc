@@ -1204,8 +1204,9 @@ ServerCommand::server_debug()
 
   // If the following is not passed as options then the request will ignore them as default values
   // will be set.
-  std::string       tags      = get_parsed_arguments()->get(TAGS_STR).value();
-  const std::string client_ip = get_parsed_arguments()->get(CLIENT_IP_STR).value();
+  std::string       tags        = get_parsed_arguments()->get(TAGS_STR).value();
+  const std::string tags_origin = get_parsed_arguments()->get(TAGS_STR).env_source();
+  const std::string client_ip   = get_parsed_arguments()->get(CLIENT_IP_STR).value();
 
   // If append mode is enabled and tags are provided, fetch current tags and combine
   if (append && !tags.empty()) {
@@ -1232,7 +1233,11 @@ ServerCommand::server_debug()
 
   bw.print("■ TS Runtime debug set to »{}({})«", enable ? "ON" : "OFF", enable ? (!client_ip.empty() ? "2" : "1") : "0");
   if (enable) {
-    bw.print(" - tags »\"{}\"«, client_ip »{}«", !tags.empty() ? tags : "unchanged", !client_ip.empty() ? client_ip : "unchanged");
+    bw.print(" - tags »\"{}\"«", !tags.empty() ? tags : "unchanged");
+    if (!tags_origin.empty()) {
+      bw.print(" (from {})", tags_origin);
+    }
+    bw.print(", client_ip »{}«", !client_ip.empty() ? client_ip : "unchanged");
   }
   if (response.is_error()) {
     _printer->write_output(response);

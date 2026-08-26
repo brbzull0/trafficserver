@@ -1163,6 +1163,11 @@ traffic_ctl server
       $ traffic_ctl server debug enable --tags "http" --append
       ■ TS Runtime debug set to »ON(1)« - tags »"quic|quiche|http"«, client_ip »unchanged«
 
+      # Take the tags from TS_DEBUG_TAGS, which is named so that tags nobody typed are not
+      # applied silently
+      $ TS_DEBUG_TAGS="cache|hostdb" traffic_ctl server debug enable --tags
+      ■ TS Runtime debug set to »ON(1)« - tags »"cache|hostdb"« (from TS_DEBUG_TAGS), client_ip »unchanged«
+
       # Disable debug logging
       $ traffic_ctl server debug disable
       ■ TS Runtime debug set to »OFF(0)«
@@ -1567,11 +1572,16 @@ never applied silently.
 
 .. envvar:: TS_DEBUG_TAGS
 
-   The tags used by ``server debug enable -t`` when it is given none.
+   The tags used by ``server debug enable -t`` when it is given none. The variable is named
+   next to the tags it supplied, so tags that were not typed are not applied silently.
 
    .. code-block:: bash
 
       $ TS_DEBUG_TAGS='http|dns' traffic_ctl server debug enable -t
+      ■ TS Runtime debug set to »ON(1)« - tags »"http|dns"« (from TS_DEBUG_TAGS), client_ip »unchanged«
+
+      $ TS_DEBUG_TAGS='http|dns' traffic_ctl server debug enable -t cache   # typed tags win, nothing to report
+      ■ TS Runtime debug set to »ON(1)« - tags »"cache"«, client_ip »unchanged«
 
 :envvar:`TS_RUNROOT` also applies, and is read whether or not :option:`--run-root` is
 given. See :ref:`runroot`.

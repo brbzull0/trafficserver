@@ -69,7 +69,27 @@ traffic_ctl.server().debug().disable().exec()
 # Test 13: Verify debug is disabled
 traffic_ctl.config().get("proxy.config.diags.debug.enabled").validate_with_text("proxy.config.diags.debug.enabled: 0")
 
-# Test 14: Verify --append requires --tags (should fail with error)
+# Test 14: Tags taken from TS_DEBUG_TAGS are applied and the variable is named, so that tags
+# nobody typed do not take effect silently.
+tr = Test.AddTestRun("tags supplied by TS_DEBUG_TAGS")
+tr.Processes.Default.Env = traffic_ctl._ts.Env
+tr.Processes.Default.Command = "env 'TS_DEBUG_TAGS=cache|hostdb' traffic_ctl server debug enable --tags"
+tr.Processes.Default.ReturnCode = 0
+tr.Processes.Default.Streams.stdout = Testers.ContainsExpression(
+    r'tags »"cache\|hostdb"« \(from TS_DEBUG_TAGS\)', "The tags and the variable that supplied them must both be named")
+tr.StillRunningAfter = traffic_ctl._ts
+
+# Test 15: Typed tags win over the variable, and nothing is reported because nothing is surprising.
+tr = Test.AddTestRun("typed tags win over TS_DEBUG_TAGS")
+tr.Processes.Default.Env = traffic_ctl._ts.Env
+tr.Processes.Default.Command = "env 'TS_DEBUG_TAGS=cache|hostdb' traffic_ctl server debug enable --tags http"
+tr.Processes.Default.ReturnCode = 0
+tr.Processes.Default.Streams.stdout = Testers.ContainsExpression(r'tags »"http"«', "The typed tags must be the ones applied")
+tr.Processes.Default.Streams.stdout += Testers.ExcludesExpression(
+    "from TS_DEBUG_TAGS", "The tags were typed, so there is nothing to report")
+tr.StillRunningAfter = traffic_ctl._ts
+
+# Test 16: Verify --append requires --tags (should fail with error)
 # This tests the ArgParser requires() functionality
 tr = Test.AddTestRun("test --append without --tags")
 tr.Processes.Default.Env = traffic_ctl._ts.Env

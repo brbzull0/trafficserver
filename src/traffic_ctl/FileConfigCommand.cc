@@ -225,7 +225,9 @@ FileConfigCommand::FileConfigCommand(ts::Arguments *args) : CtrlCommand(args)
 std::string
 FileConfigCommand::cold_file_origin()
 {
-  auto const &origin = get_parsed_arguments()->get(COLD_STR).env_source();
+  // By value: get() hands back a copy of the argument data, so a reference into it would
+  // outlive the copy.
+  std::string const origin = get_parsed_arguments()->get(COLD_STR).env_source();
 
   if (origin.empty()) {
     return {};
