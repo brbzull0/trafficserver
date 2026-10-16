@@ -40,6 +40,8 @@
 #include "swoc/swoc_file.h"
 #include "ts/InkAPIPrivateIOCore.h"
 
+#include <memory>
+#include <string>
 #include <typeinfo>
 
 /* Some defines that might be candidates for configurable settings later.
@@ -109,32 +111,21 @@ struct HttpAltInfo {
 class ConfigUpdateCallback : public Continuation
 {
 public:
-  explicit ConfigUpdateCallback(INKContInternal *contp) : Continuation(contp->mutex.get()), m_cont(contp)
+  /// Reload-task bookkeeping shared by every callback dispatched in one reload.
+  struct Batch;
+
+  ConfigUpdateCallback(INKContInternal *contp, std::string name, std::shared_ptr<Batch> batch)
+    : Continuation(contp->mutex.get()), m_cont(contp), m_name(std::move(name)), m_batch(std::move(batch))
   {
     SET_HANDLER(&ConfigUpdateCallback::event_handler);
   }
 
-  int
-  event_handler(int, void *)
-  {
-    if (m_cont->mutex) {
-      MUTEX_TRY_LOCK(trylock, m_cont->mutex, this_ethread());
-      if (!trylock.is_locked()) {
-        eventProcessor.schedule_in(this, HRTIME_MSECONDS(10), ET_TASK);
-      } else {
-        m_cont->handleEvent(TS_EVENT_MGMT_UPDATE, nullptr);
-        delete this;
-      }
-    } else {
-      m_cont->handleEvent(TS_EVENT_MGMT_UPDATE, nullptr);
-      delete this;
-    }
-
-    return 0;
-  }
+  int event_handler(int, void *);
 
 private:
-  INKContInternal *m_cont;
+  INKContInternal       *m_cont;
+  std::string            m_name;
+  std::shared_ptr<Batch> m_batch;
 };
 
 class ConfigUpdateCbTable
@@ -145,7 +136,6 @@ public:
 
   void insert(INKContInternal *contp, const char *name, const char *file_name = nullptr);
   void invoke();
-  void invoke(INKContInternal *contp);
 
 private:
   std::unordered_map<std::string, std::tuple<INKContInternal *, swoc::file::path, swoc::file::file_time_type>> cb_table;

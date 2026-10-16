@@ -223,6 +223,12 @@ ConfigReloadTask::aggregate_status()
   // Use unique_lock throughout to avoid TOCTOU race and data races
   std::unique_lock<std::shared_mutex> lock(_mutex);
 
+  // Only mark_as_bad_state() sets TIMEOUT (progress timeout or --force). A subtask that finishes
+  // later must not turn a timed-out or superseded reload into a success.
+  if (_info.state == State::TIMEOUT) {
+    return;
+  }
+
   if (_info.sub_tasks.empty()) {
     // No subtasks - keep current state (don't change to CREATED)
     return;

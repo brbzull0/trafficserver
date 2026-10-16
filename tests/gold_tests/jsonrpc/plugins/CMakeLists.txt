@@ -27,3 +27,5 @@ target_link_libraries(cfg_plugin_deferred_test PRIVATE yaml-cpp::yaml-cpp)
 
 add_autest_plugin(cfg_plugin_directives_test cfg_plugin_directives_test.cc)
 target_link_libraries(cfg_plugin_directives_test PRIVATE yaml-cpp::yaml-cpp)
+
+add_autest_plugin(mgmt_update_plugin_test mgmt_update_plugin_test.cc)

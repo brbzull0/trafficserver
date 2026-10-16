@@ -873,12 +873,47 @@ how to wire registration, handler logic, and deferred completion:
   reading inline YAML and reload directives.
 - ``tests/gold_tests/jsonrpc/plugins/cfg_plugin_deferred_test.cc`` -
   asynchronous / deferred completion pattern.
+- ``tests/gold_tests/jsonrpc/plugins/mgmt_update_plugin_test.cc`` -
+  a :func:`TSMgmtUpdateRegister` plugin, for how those callbacks appear in
+  the task tree.
 
 The matching autests
 (``config_reload_plugin_api.test.py`` and friends in
 ``tests/gold_tests/jsonrpc/``) demonstrate driving these plugins via
 :program:`traffic_ctl` and validating both the task tree and the
 ``[plugin: <name>]`` attribution.
+
+Plugins using TSMgmtUpdateRegister
+----------------------------------
+
+Plugins that register with :func:`TSMgmtUpdateRegister` are notified on every
+file-source reload or, when registered with a file, only when that file's
+modification time has advanced. Their callbacks cannot report an outcome, so the
+task tree groups them under one core subtask, ``TSMgmtUpdateRegister callbacks``.
+The subtask lists the plugins being notified, adds a ``Warning`` entry for each
+plugin when its callback returns, and completes once every callback has
+returned. If a registered file cannot be stat'd (for example, it is missing),
+that plugin is not notified and the subtask names it in a ``Warning`` entry.
+
+Until the subtask completes, the main reload task stays in progress, unless a
+core subtask fails, the reload times out
+(:ts:cv:`proxy.config.admin.reload.timeout`), or another reload supersedes it
+with ``--force``. A timed-out or superseded reload stays ``timeout`` when its
+callbacks return later. A callback that blocks therefore holds the reload in
+progress, and other reloads are refused until it returns or the reload times
+out. The timeout is checked on an ``ET_TASK`` thread, so it can fire late while
+callbacks occupy every ``ET_TASK`` thread. The subtask is created at the end of
+the reload's pass over the configuration files, so a client that polls in the
+first moments of a reload can briefly see a ``success`` that the subtask then
+reopens; :option:`traffic_ctl config reload` ``--monitor`` waits before its first
+poll.
+
+The subtask's ``success`` means only that every callback ran and returned. It
+does not mean the plugins accepted their configuration: a plugin that rejects a
+config and keeps its previous one shows up the same way. To report success or
+failure, migrate the plugin to :func:`TSCfgRegister`.
+
+Inline (``--data``) reloads do not notify these plugins.
 
 Reference
 ---------
