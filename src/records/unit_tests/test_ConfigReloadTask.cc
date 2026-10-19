@@ -132,6 +132,53 @@ TEST_CASE("ConfigReloadTask state transitions", "[config][reload][state]")
   }
 }
 
+TEST_CASE("ConfigReloadTask main task keeps TIMEOUT when a subtask finishes late", "[config][reload][state]")
+{
+  auto          main_task = std::make_shared<ConfigReloadTask>("test-token-late", "main task", true, nullptr);
+  ConfigContext done      = main_task->add_child("finished child");
+  ConfigContext late      = main_task->add_child("late child");
+
+  done.complete();
+  REQUIRE(main_task->get_state() == ConfigReloadTask::State::IN_PROGRESS);
+
+  main_task->mark_as_bad_state("Superseded by forced reload");
+  REQUIRE(main_task->get_state() == ConfigReloadTask::State::TIMEOUT);
+
+  SECTION("Late success")
+  {
+    late.complete();
+    REQUIRE(main_task->get_state() == ConfigReloadTask::State::TIMEOUT);
+  }
+
+  SECTION("Late failure")
+  {
+    late.fail("rejected after the timeout");
+    REQUIRE(main_task->get_state() == ConfigReloadTask::State::TIMEOUT);
+  }
+
+  SECTION("Late progress update")
+  {
+    late.in_progress();
+    REQUIRE(main_task->get_state() == ConfigReloadTask::State::TIMEOUT);
+  }
+}
+
+TEST_CASE("ConfigReloadTask main task in SUCCESS is reopened by a late subtask", "[config][reload][state]")
+{
+  auto          main_task = std::make_shared<ConfigReloadTask>("test-token-reopen", "main task", true, nullptr);
+  ConfigContext first     = main_task->add_child("first child");
+
+  first.complete();
+  REQUIRE(main_task->get_state() == ConfigReloadTask::State::SUCCESS);
+
+  ConfigContext second = main_task->add_child("second child");
+  second.in_progress();
+  REQUIRE(main_task->get_state() == ConfigReloadTask::State::IN_PROGRESS);
+
+  second.complete();
+  REQUIRE(main_task->get_state() == ConfigReloadTask::State::SUCCESS);
+}
+
 TEST_CASE("State to string conversion", "[config][reload][state]")
 {
   // Runtime checks

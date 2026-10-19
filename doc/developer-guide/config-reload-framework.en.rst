@@ -419,7 +419,9 @@ also reach a terminal state:
 **Deferred handlers** — some handlers schedule work on other threads and return before completion.
 The ``ConfigContext`` they hold remains valid across threads. They must call ``ctx.complete()`` or
 ``ctx.fail()`` from whatever thread finishes the work. If they don't, the timeout checker will mark
-the task as ``TIMEOUT``.
+the task as ``TIMEOUT``. A reload marked ``TIMEOUT``, by the timeout checker or because another reload
+superseded it with ``--force``, stays ``TIMEOUT`` when a deferred handler completes or fails later.
+The handler's own entry in the task tree still records the late result.
 
 .. note::
 
@@ -721,6 +723,14 @@ What changes for plugins is only the surface API:
   the same in-progress / complete / fail / log / supplied-yaml /
   reload-directives / add-subtask operations exposed as plain
   ``TSCfgLoadCtx*`` functions.
+
+Plugins that use the older :func:`TSMgmtUpdateRegister` API are only
+notified: their callbacks are scheduled on ``ET_TASK`` after the reload
+has re-read the configuration files, nothing is recorded for them in the
+task tree, and the reload's status does not cover them. Inline
+(``--data``) reloads do not notify them. A plugin that needs its reload
+to appear in :option:`traffic_ctl config status`, or needs to report a
+failure, should register with :func:`TSCfgRegister` instead.
 
 Lifecycle and preconditions
 ---------------------------
